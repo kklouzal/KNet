@@ -12,7 +12,9 @@ namespace KNet
 	public:
 		addrinfo* Results = {};
 
-		NetAddress(char* const Buffer) : DataBuffer(Buffer), Address(), RIO_BUF() {}
+		NetAddress(char* const Buffer)
+			: DataBuffer(Buffer), Address(), Port(0), RIO_BUF()
+		{}
 
 		~NetAddress()
 		{
@@ -26,10 +28,7 @@ namespace KNet
 			addrinfo Hint = {};
 			Hint.ai_family = AF_INET;
 			//	Resolve the End Hosts addrinfo
-			if (getaddrinfo(StrHost.c_str(), std::to_string(StrPort).c_str(), &Hint, &Results) != 0)
-			{
-				printf("NetAddress GetAddrInfo Failed %i\n", WSAGetLastError());
-			}
+			KN_CHECK_RESULT((getaddrinfo(StrHost.c_str(), std::to_string(StrPort).c_str(), &Hint, &Results)), (INT)true);
 
 			//	Create our formatted address
 			if (Results->ai_family == AF_INET)

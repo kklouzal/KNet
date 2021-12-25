@@ -8,6 +8,8 @@
 #include <MSWSock.h>
 #pragma comment(lib, "ws2_32.lib")
 
+#include "ErrorHandling.hpp"
+
 //	STL Headers
 #include <thread>
 #include <atomic>
@@ -75,14 +77,12 @@ namespace KNet
 			SOCKET RioSocket = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, NULL, WSA_FLAG_REGISTERED_IO);
 			GUID functionTableID = WSAID_MULTIPLE_RIO;
 			DWORD dwBytes = 0;
-			if (WSAIoctl(RioSocket, SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER,
+			KN_CHECK_RESULT(WSAIoctl(RioSocket, SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER,
 				&functionTableID,
 				sizeof(GUID),
 				(void**)&g_RIO,
 				sizeof(g_RIO),
-				&dwBytes, 0, 0) == SOCKET_ERROR) {
-				printf("RIO Failed(%i)\n", WSAGetLastError());
-			}
+				&dwBytes, 0, 0), SOCKET_ERROR);
 			closesocket(RioSocket);
 			SendPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS);
 			AddressPool = new NetPool<NetAddress, ADDR_SIZE>(GLOBAL_ADDRS);

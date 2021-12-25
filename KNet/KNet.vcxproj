@@ -139,6 +139,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="ErrorHandling.hpp" />
     <ClInclude Include="KNet.hpp" />
     <ClInclude Include="lz4.h" />
     <ClInclude Include="NetAddress.hpp" />

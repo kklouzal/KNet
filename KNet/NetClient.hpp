@@ -50,9 +50,7 @@ namespace KNet
 		{
 			//
 			//	Push the received packet into this client
-			if (!PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap)) {
-				printf("Post Queued Completion Status - Send Error: %i\n", GetLastError());
-			}
+			KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
 			//
 			//	Formulate an acknowledgement
 			NetPacket_Send* ACK = SendPacketPool->GetFreeObject();
@@ -73,9 +71,7 @@ namespace KNet
 		{
 			//
 			//	Push the received packet into this client
-			if (!PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap)) {
-				printf("Post Queued Completion Status - Send Error: %i\n", GetLastError());
-			}
+			KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
 			//
 			//	Formulate an acknowledgement
 			NetPacket_Send* ACK = SendPacketPool->GetFreeObject();
@@ -104,8 +100,7 @@ namespace KNet
 		//	Packets are arranged in the order by which they were received
 		std::deque<NetPacket_Recv*> GetPackets() {
 			std::deque<NetPacket_Recv*> _Packets;
-			if (!GetQueuedCompletionStatusEx(IOCP, pEntries, PENDING_RECVS, &pEntriesCount, 0, false)) {
-				printf("Get Queued Completion Status - Client Error: %i\n", GetLastError());
+			if (KN_CHECK_RESULT2(GetQueuedCompletionStatusEx(IOCP, pEntries, PENDING_RECVS, &pEntriesCount, 0, false), false)) {
 				return _Packets;
 			}
 

@@ -11,12 +11,10 @@ namespace KNet
 		std::deque<T*> _Free;
 	public:
 		NetPool(const DWORD PoolSize) :
-			_Data(new char[PoolSize * MaxSize])
+			_Data(new char[PoolSize * MaxSize]),
+			_BufferID(g_RIO.RIORegisterBuffer(_Data, PoolSize* MaxSize))
 		{
-			_BufferID = g_RIO.RIORegisterBuffer(_Data, PoolSize * MaxSize);
-			if (_BufferID == RIO_INVALID_BUFFERID) {
-				printf("RIO Register Buffer Failed - 1 Code: (%i)\n", GetLastError());
-			}
+			KN_CHECK_RESULT(_BufferID, RIO_INVALID_BUFFERID);
 			//
 			//	Create our pool of objects
 			for (uint32_t i = 0; i < PoolSize; i++) {
