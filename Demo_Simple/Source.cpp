@@ -5,7 +5,6 @@ int main()
     //
     //  Initialize KNet
 	KNet::Initialize();
-	std::system("PAUSE");
 
     //
     //  Resolve our send and receive addresses
@@ -13,64 +12,70 @@ int main()
     auto RecvAddr = KNet::AddressPool->GetFreeObject();
     SendAddr->Resolve("192.168.1.193", 9000);
     RecvAddr->Resolve("192.168.1.193", 9001);
-	std::system("PAUSE");
 
     //
     //  Create the socket
     KNet::NetPoint* Point = new KNet::NetPoint(SendAddr, RecvAddr);
-    std::system("PAUSE");
 
     //
     //  Send a test packet
     {
         KNet::NetPacket_Send* Pkt = KNet::SendPacketPool->GetFreeObject();
-        Pkt->AddDestination(RecvAddr);
-        Pkt->write<KNet::PacketID>(KNet::PacketID::Handshake);
-        Point->SendPacket(Pkt);
+        if (Pkt)
+        {
+            Pkt->AddDestination(RecvAddr);
+            Pkt->write<KNet::PacketID>(KNet::PacketID::Handshake);
+            Point->SendPacket(Pkt);
+        }
     }
     std::system("PAUSE");
 
     //
     //  Get any received packets
-    auto Pkts1 = Point->GetPackets();
-    std::system("PAUSE");
-
-    //
-    //  Send a bunch of test packets
-    for (auto i = 0; i < 1024; i++)
+    const auto Packets1 = Point->GetPackets();
+    for (auto _Pkt : Packets1)
     {
-        KNet::NetPacket_Send* Pkt = KNet::SendPacketPool->GetFreeObject();
-        Pkt->AddDestination(RecvAddr);
-        Pkt->write<KNet::PacketID>(KNet::PacketID::Handshake);
-        Point->SendPacket(Pkt);
+        Point->ReleasePacket(_Pkt);
     }
     std::system("PAUSE");
 
-    //
-    //  Get any received packets
-    auto Pkts2 = Point->GetPackets();
-    std::system("PAUSE");
-
-    //
-    //  Send a bunch of test packets
-    for (auto i = 0; i < 10; i++)
+    for (auto i = 0; i < 15; i++)
     {
-        KNet::NetPacket_Send* Pkt = KNet::SendPacketPool->GetFreeObject();
-        Pkt->AddDestination(RecvAddr);
-        Pkt->write<KNet::PacketID>(KNet::PacketID::Handshake);
-        Point->SendPacket(Pkt);
+        //
+        //  Send a bunch of test packets
+        for (auto i = 0; i < 128; i++)
+        {
+            KNet::NetPacket_Send* Pkt = KNet::SendPacketPool->GetFreeObject();
+            if (Pkt)
+            {
+                Pkt->AddDestination(RecvAddr);
+                Pkt->write<KNet::PacketID>(KNet::PacketID::Handshake);
+                Point->SendPacket(Pkt);
+            }
+        }
+        //
+        //  Get any received packets
+        const auto Packets2 = Point->GetPackets();
+        for (auto _Pkt : Packets2)
+        {
+            Point->ReleasePacket(_Pkt);
+        }
+        //
+        //  Pause loop iteration
+        std::system("PAUSE");
     }
-    std::system("PAUSE");
 
     //
-    //  Get any received packets
-    auto Pkts3 = Point->GetPackets();
-    std::system("PAUSE");
+    //  Get any missed packets
+    const auto Packets3 = Point->GetPackets();
+    for (auto _Pkt : Packets3)
+    {
+        Point->ReleasePacket(_Pkt);
+    }
 
     //
     //  Delete the socket
     delete Point;
-    std::system("PAUSE");
 
     //
     //  Deinitialize the library

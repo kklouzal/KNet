@@ -17,20 +17,15 @@ namespace KNet
 
 		RIO_RQ SendRequestQueue;
 		RIO_RQ RecvRequestQueue;
-		RIO_RQ RecvSendRequestQueue;
 
 		RIO_CQ SendQueue;
 		RIO_CQ RecvQueue;
 
 		//	Receive packets for the receive thread
 		NetPool<NetPacket_Recv, ADDR_SIZE + MAX_PACKET_SIZE>* RecvPackets;
-		//	Send packets for the receive thread
-		//	Used to immediately fire off ACKs
-		NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>* ACKPackets;
 
 		OVERLAPPED SendIOCPOverlap = {};
 		OVERLAPPED RecvIOCPOverlap = {};
-		OVERLAPPED RecvIOCPOverlap2 = {};
 		HANDLE SendIOCP;
 		HANDLE RecvIOCP;
 
@@ -46,7 +41,6 @@ namespace KNet
 		enum class RecvCompletion : ULONG_PTR {
 			RecvComplete,
 			RecvRelease,
-			SendRelease,
 			RecvShutdown
 		};
 		enum class PointCompletion : ULONG_PTR {
@@ -59,7 +53,6 @@ namespace KNet
 		//	RecvAddr - Receives packets in on this address
 		NetPoint(NetAddress* SendAddr, NetAddress* RecvAddr) :
 			bRunning(true), SendAddress(SendAddr), RecvAddress(RecvAddr),
-			ACKPackets(new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(PENDING_SENDS)),
 			RecvPackets(new NetPool<NetPacket_Recv, ADDR_SIZE + MAX_PACKET_SIZE>(PENDING_RECVS)),
 			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0)
 		{
@@ -100,17 +93,11 @@ namespace KNet
 			RecvCompletion.Iocp.IocpHandle = RecvIOCP;
 			RecvCompletion.Iocp.CompletionKey = (void*)RecvCompletion::RecvComplete;
 			RecvCompletion.Iocp.Overlapped = &RecvIOCPOverlap;
-			RIO_NOTIFICATION_COMPLETION RecvSendCompletion = {};
-			RecvSendCompletion.Type = RIO_IOCP_COMPLETION;
-			RecvSendCompletion.Iocp.IocpHandle = RecvIOCP;
-			RecvSendCompletion.Iocp.CompletionKey = (void*)RecvCompletion::SendRelease;
-			RecvSendCompletion.Iocp.Overlapped = &RecvIOCPOverlap2;
-
 			SendQueue = g_RIO.RIOCreateCompletionQueue(PENDING_SENDS, &SendCompletion);
 			if (SendQueue == RIO_INVALID_CQ) {
 				printf("RIO Create Completion Queue Failed - Send Error: (%i)\n", GetLastError());
 			}
-			RecvQueue = g_RIO.RIOCreateCompletionQueue(PENDING_RECVS*2, &RecvCompletion);
+			RecvQueue = g_RIO.RIOCreateCompletionQueue(PENDING_RECVS, &RecvCompletion);
 			if (RecvQueue == RIO_INVALID_CQ) {
 				printf("RIO Create Completion Queue Failed - Recv Error: (%i)\n", GetLastError());
 			}
@@ -118,15 +105,11 @@ namespace KNet
 			//	Create Send/Recv Request Queue
 			SendRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketSend, 0, 1, PENDING_SENDS, 1, SendQueue, SendQueue, &SendCompletion);
 			if (SendRequestQueue == RIO_INVALID_RQ) {
-				printf("RIO Create Request Queue Failed 1 - Send Error: (%i)\n", GetLastError());
+				printf("RIO Create Request Queue Failed - Send Error: (%i)\n", GetLastError());
 			}
 			RecvRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketRecv, PENDING_RECVS, 1, 0, 1, RecvQueue, RecvQueue, &RecvCompletion);
 			if (RecvRequestQueue == RIO_INVALID_RQ) {
-				printf("RIO Create Request Queue Failed 2 - Recv Error: (%i)\n", GetLastError());
-			}
-			RecvSendRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketRecv, 0, 1, PENDING_RECVS, 1, RecvQueue, RecvQueue, &RecvSendCompletion);
-			if (RecvSendRequestQueue == RIO_INVALID_RQ) {
-				printf("RIO Create Request Queue Failed 3 - Recv Error: (%i)\n", GetLastError());
+				printf("RIO Create Request Queue Failed - Recv Error: (%i)\n", GetLastError());
 			}
 			//
 			//	Post our receives
@@ -206,7 +189,6 @@ namespace KNet
 			//
 			//	Cleanup object pools
 			delete RecvPackets;
-			delete ACKPackets;
 			//
 			//	Close the NetPoints IOCP handle
 			CloseHandle(PointIOCP);
@@ -216,6 +198,13 @@ namespace KNet
 		void SendPacket(NetPacket_Send* Packet) {
 			//	Send the packet
 			if (!PostQueuedCompletionStatus(SendIOCP, NULL, (ULONG_PTR)NetPoint::SendCompletion::SendInitiate, &Packet->Overlap)) {
+				printf("Post Queued Completion Status - Error: %i\n", GetLastError());
+			}
+		}
+
+		void ReleasePacket(NetPacket_Recv* Packet) {
+			//	Release the packet
+			if (!PostQueuedCompletionStatus(RecvIOCP, NULL, (ULONG_PTR)NetPoint::RecvCompletion::RecvRelease, &Packet->Overlap)) {
 				printf("Post Queued Completion Status - Error: %i\n", GetLastError());
 			}
 		}
@@ -276,21 +265,10 @@ namespace KNet
 						//
 						//	Cleanup the sent packet
 						NetPacket_Send* Packet = reinterpret_cast<NetPacket_Send*>(Result.RequestContext);
-						if (Packet->bInternal) {
-							//
-							//	Hand the packet over to the recv thread to be stored back in the SendBufferPool_Recv
-							printf("Internal Send Packet - Send Completed\n");
-							if (!PostQueuedCompletionStatus(RecvIOCP, NULL, (ULONG_PTR)RecvCompletion::SendRelease, &Packet->Overlap)) {
-								printf("Post Queued Completion Status - Send Error: %i\n", GetLastError());
-							}
-						}
-						else {
-							//
-							//	Hand the packet over to the main thread to be stored back in the SendBufferPool
-							printf("Send Packet - Send Completed\n");
-							if (!PostQueuedCompletionStatus(PointIOCP, NULL, (ULONG_PTR)PointCompletion::SendRelease, &Packet->Overlap)) {
-								printf("Post Queued Completion Status - Send Error: %i\n", GetLastError());
-							}
+						//
+						//	Hand the packet over to the main thread to be stored back in the SendBufferPool
+						if (!PostQueuedCompletionStatus(PointIOCP, NULL, (ULONG_PTR)PointCompletion::SendRelease, &Packet->Overlap)) {
+							printf("Post Queued Completion Status - Send Error: %i\n", GetLastError());
 						}
 					}
 					else { printf("Dequeued 0 Send Completions\n"); }
@@ -311,7 +289,6 @@ namespace KNet
 					//
 					//	Send the data to its destination
 					g_RIO.RIOSendEx(SendRequestQueue, Packet, 1, NULL, Packet->Address, 0, 0, 0, Packet);
-					printf("Send\n");
 				}
 				//
 				//	Shutdown Thread Operation
@@ -349,6 +326,7 @@ namespace KNet
 						//	Grab the packet and decompress the data
 						NetPacket_Recv* Packet = reinterpret_cast<NetPacket_Recv*>(Result.RequestContext);
 						Packet->Decompress(Result.BytesTransferred);
+						bool bRecycle = false;
 						//
 						//	Try to read Operation ID
 						PacketID Operation;
@@ -357,45 +335,16 @@ namespace KNet
 							//
 							//	Grab the source address information
 							SOCKADDR_INET* Source = Packet->GetAddress();
-							//
-							//	Check if we received an ACK
-							if (Operation == PacketID::Acknowledgement)
-							{
-								//	TODO: Process incoming packet acknowledgement
-								printf("Received ACK\n");
-								Packet->bInternal = true;
-							}
-							//
-							//	Otherwise Immediately fire off an acknowledgement back to the sender
-							else {
-								KNet::NetPacket_Send* ACK = ACKPackets->GetFreeObject();
-								if (ACK)
-								{
-									// WARN: 'Packet' should live long enough for us to reuse its address.
-									ACK->AddDestination(Packet->Address);
-									ACK->write<KNet::PacketID>(KNet::PacketID::Acknowledgement);
-									ACK->write<unsigned short>(123);
-									//
-									//	Compress and send
-									ACK->Compress();
-									g_RIO.RIOSendEx(RecvSendRequestQueue, ACK, 1, NULL, ACK->Address, 0, 0, 0, &ACK->Overlap);
-									printf("Send ACK\n");
-								}
-								else {
-									printf("No free ACK packets, dropping incoming packet!\n");
-									Packet->bInternal = true;
-								}
-							}
 						}
 						//
 						//	Unable to read Operation ID
 						else {
 							printf("Unable To Read Packet opID\n");
-							Packet->bInternal = true;
+							bRecycle = true;
 						}
 						//
 						//	Hand the packet over to the main thread for user processing
-						if (!Packet->bInternal) {
+						if (!bRecycle) {
 							if (!PostQueuedCompletionStatus(PointIOCP, NULL, (ULONG_PTR)PointCompletion::RecvUnread, &Packet->Overlap)) {
 								printf("Post Queued Completion Status - Recv Error: %i\n", GetLastError());
 							}
@@ -421,7 +370,6 @@ namespace KNet
 				//
 				//	Release Recv Packet Operation
 				else if (completionKey == (ULONG_PTR)RecvCompletion::RecvRelease) {
-					printf("Release Recv\n");
 					NetPacket_Recv* Packet = reinterpret_cast<NetPacket_Recv*>(pOverlapped->Pointer);
 					Packet->m_read = 0;
 					//
@@ -429,17 +377,6 @@ namespace KNet
 					if (!g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, Packet)) {
 						printf("RIO Receive Failed - Code: (%i)\n", GetLastError());
 					}
-				}
-				//
-				//	Release Internal Send Packet Operation
-				else if (completionKey == (ULONG_PTR)RecvCompletion::SendRelease) {
-					printf("Internal Send Release\n");
-					NetPacket_Send* Packet = reinterpret_cast<NetPacket_Send*>(pOverlapped->Pointer);
-					Packet->m_write = 0;
-					//
-					//	Put this Send Packet back in our internal buffer pool
-					printf("Internal Send Packet - Return To Pool\n");
-					ACKPackets->ReturnUsedObject(Packet);
 				}
 				//
 				//	Shutdown Thread Operation

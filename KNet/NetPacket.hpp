@@ -9,7 +9,6 @@ namespace KNet {
 		OVERLAPPED Overlap;
 		alignas(alignof(std::max_align_t)) char* const BinaryData;
 		size_t m_write;
-		bool bInternal;
 
 	public:
 		PRIO_BUF Address = nullptr;
@@ -18,8 +17,7 @@ namespace KNet {
 			DataBuffer(Buffer),
 			Overlap(OVERLAPPED()),
 			BinaryData(new char[MAX_PACKET_SIZE]),
-			m_write(0),
-			bInternal(false)
+			m_write(0)
 		{
 			Overlap.Pointer = this;
 		}
@@ -71,7 +69,6 @@ namespace KNet {
 		OVERLAPPED Overlap;
 		alignas(alignof(std::max_align_t)) char* const BinaryData;
 		size_t m_read;
-		bool bInternal;
 
 	public:
 		PRIO_BUF Address = nullptr;
@@ -81,8 +78,7 @@ namespace KNet {
 			Overlap(OVERLAPPED()),
 			Address(new RIO_BUF),
 			BinaryData(new char[MAX_PACKET_SIZE]),
-			m_read(0),
-			bInternal(false)
+			m_read(0)
 		{
 			Overlap.Pointer = this;
 		}
