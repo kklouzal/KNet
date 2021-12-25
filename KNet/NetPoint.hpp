@@ -204,7 +204,6 @@ namespace KNet
 
 		void ReleasePacket(NetPacket_Recv* Packet) {
 			//	Release the packet
-			printf("Post Release\n");
 			if (!PostQueuedCompletionStatus(RecvIOCP, NULL, (ULONG_PTR)NetPoint::RecvCompletion::RecvRelease, &Packet->Overlap)) {
 				printf("Post Queued Completion Status - Error: %i\n", GetLastError());
 			}
@@ -226,7 +225,6 @@ namespace KNet
 				//
 				//	Release Send Packet Operation
 				if (pEntries[i].lpCompletionKey == (ULONG_PTR)PointCompletion::SendRelease) {
-					printf("Release Send\n");
 					NetPacket_Send* Packet = reinterpret_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer);
 					Packet->m_write = 0;
 					KNet::SendPacketPool->ReturnUsedObject(Packet);
@@ -269,7 +267,6 @@ namespace KNet
 						NetPacket_Send* Packet = reinterpret_cast<NetPacket_Send*>(Result.RequestContext);
 						//
 						//	Hand the packet over to the main thread to be stored back in the SendBufferPool
-						printf("Send Packet - Send Completed\n");
 						if (!PostQueuedCompletionStatus(PointIOCP, NULL, (ULONG_PTR)PointCompletion::SendRelease, &Packet->Overlap)) {
 							printf("Post Queued Completion Status - Send Error: %i\n", GetLastError());
 						}
@@ -292,7 +289,6 @@ namespace KNet
 					//
 					//	Send the data to its destination
 					g_RIO.RIOSendEx(SendRequestQueue, Packet, 1, NULL, Packet->Address, 0, 0, 0, Packet);
-					printf("Send\n");
 				}
 				//
 				//	Shutdown Thread Operation
@@ -374,7 +370,6 @@ namespace KNet
 				//
 				//	Release Recv Packet Operation
 				else if (completionKey == (ULONG_PTR)RecvCompletion::RecvRelease) {
-					printf("Release Recv\n");
 					NetPacket_Recv* Packet = reinterpret_cast<NetPacket_Recv*>(pOverlapped->Pointer);
 					Packet->m_read = 0;
 					//

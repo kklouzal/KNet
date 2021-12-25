@@ -28,67 +28,54 @@ int main()
             Point->SendPacket(Pkt);
         }
     }
+    std::system("PAUSE");
 
     //
     //  Get any received packets
     const auto Packets1 = Point->GetPackets();
     for (auto _Pkt : Packets1)
     {
-        printf("Userland Packet\n");
         Point->ReleasePacket(_Pkt);
     }
     std::system("PAUSE");
 
-    //
-    //  Send a bunch of test packets
-    for (auto i = 0; i < 1024; i++)
+    for (auto i = 0; i < 15; i++)
     {
-        KNet::NetPacket_Send* Pkt = KNet::SendPacketPool->GetFreeObject();
-        if (Pkt)
+        //
+        //  Send a bunch of test packets
+        for (auto i = 0; i < 128; i++)
         {
-            Pkt->AddDestination(RecvAddr);
-            Pkt->write<KNet::PacketID>(KNet::PacketID::Handshake);
-            Point->SendPacket(Pkt);
+            KNet::NetPacket_Send* Pkt = KNet::SendPacketPool->GetFreeObject();
+            if (Pkt)
+            {
+                Pkt->AddDestination(RecvAddr);
+                Pkt->write<KNet::PacketID>(KNet::PacketID::Handshake);
+                Point->SendPacket(Pkt);
+            }
         }
-    }
-    std::system("PAUSE");
-
-    //
-    //  Get any received packets
-    const auto Packets2 = Point->GetPackets();
-    for (auto _Pkt : Packets2)
-    {
-        Point->ReleasePacket(_Pkt);
-    }
-    std::system("PAUSE");
-
-    //
-    //  Send a bunch of test packets
-    for (auto i = 0; i < 10; i++)
-    {
-        KNet::NetPacket_Send* Pkt = KNet::SendPacketPool->GetFreeObject();
-        if (Pkt)
+        //
+        //  Get any received packets
+        const auto Packets2 = Point->GetPackets();
+        for (auto _Pkt : Packets2)
         {
-            Pkt->AddDestination(RecvAddr);
-            Pkt->write<KNet::PacketID>(KNet::PacketID::Handshake);
-            Point->SendPacket(Pkt);
+            Point->ReleasePacket(_Pkt);
         }
+        //
+        //  Pause loop iteration
+        std::system("PAUSE");
     }
-    std::system("PAUSE");
 
     //
-    //  Get any received packets
+    //  Get any missed packets
     const auto Packets3 = Point->GetPackets();
     for (auto _Pkt : Packets3)
     {
         Point->ReleasePacket(_Pkt);
     }
-    std::system("PAUSE");
 
     //
     //  Delete the socket
     delete Point;
-    std::system("PAUSE");
 
     //
     //  Deinitialize the library
