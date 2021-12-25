@@ -202,6 +202,14 @@ namespace KNet
 			}
 		}
 
+		void ReleasePacket(NetPacket_Recv* Packet) {
+			//	Release the packet
+			printf("Post Release\n");
+			if (!PostQueuedCompletionStatus(RecvIOCP, NULL, (ULONG_PTR)NetPoint::RecvCompletion::RecvRelease, &Packet->Overlap)) {
+				printf("Post Queued Completion Status - Error: %i\n", GetLastError());
+			}
+		}
+
 		//
 		//	Returns all packets waiting to be processed
 		//	Packets are arranged in the order by which they were received
@@ -218,6 +226,7 @@ namespace KNet
 				//
 				//	Release Send Packet Operation
 				if (pEntries[i].lpCompletionKey == (ULONG_PTR)PointCompletion::SendRelease) {
+					printf("Release Send\n");
 					NetPacket_Send* Packet = reinterpret_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer);
 					Packet->m_write = 0;
 					KNet::SendPacketPool->ReturnUsedObject(Packet);
