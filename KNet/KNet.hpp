@@ -10,10 +10,10 @@
 
 //	STL Headers
 #include <thread>
-#include <mutex>
 #include <atomic>
 #include <deque>
 #include <string>
+#include <unordered_map>
 
 #include "lz4.h"
 
@@ -43,10 +43,18 @@ namespace KNet
 	//	Internal Packet IDs
 	enum class PacketID : unsigned char {
 		Acknowledgement,
-		Handshake
+		Handshake,
+		Data
+	};
+	enum class ClientID : unsigned char {
+		Server,
+		Client
 	};
 }
 
+#include "NetClient.hpp"
+#include "NetServer.hpp"
+//
 #include "NetPoint.hpp"
 
 namespace KNet

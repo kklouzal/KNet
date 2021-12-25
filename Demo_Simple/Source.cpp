@@ -25,6 +25,7 @@ int main()
         {
             Pkt->AddDestination(RecvAddr);
             Pkt->write<KNet::PacketID>(KNet::PacketID::Handshake);
+            Pkt->write<KNet::ClientID>(KNet::ClientID::Client);
             Point->SendPacket(Pkt);
         }
     }
@@ -50,6 +51,7 @@ int main()
             {
                 Pkt->AddDestination(RecvAddr);
                 Pkt->write<KNet::PacketID>(KNet::PacketID::Handshake);
+                Pkt->write<KNet::ClientID>(KNet::ClientID::Client);
                 Point->SendPacket(Pkt);
             }
         }

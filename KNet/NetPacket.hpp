@@ -12,12 +12,15 @@ namespace KNet {
 
 	public:
 		PRIO_BUF Address = nullptr;
+		bool bChildPacket;
+		void* Child = nullptr;
 
 		NetPacket_Send(char* const Buffer) :
 			DataBuffer(Buffer),
 			Overlap(OVERLAPPED()),
 			BinaryData(new char[MAX_PACKET_SIZE]),
-			m_write(0)
+			m_write(0),
+			bChildPacket(false)
 		{
 			Overlap.Pointer = this;
 		}

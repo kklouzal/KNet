@@ -142,9 +142,11 @@
     <ClInclude Include="KNet.hpp" />
     <ClInclude Include="lz4.h" />
     <ClInclude Include="NetAddress.hpp" />
+    <ClInclude Include="NetClient.hpp" />
     <ClInclude Include="NetPacket.hpp" />
     <ClInclude Include="NetPoint.hpp" />
     <ClInclude Include="NetPool.hpp" />
+    <ClInclude Include="NetServer.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lz4.c" />

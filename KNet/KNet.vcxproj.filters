@@ -28,6 +28,12 @@
     <ClInclude Include="NetPoint.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NetClient.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NetServer.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lz4.c">

@@ -23,6 +23,9 @@ namespace KNet
 
 		//	Receive packets for the receive thread
 		NetPool<NetPacket_Recv, ADDR_SIZE + MAX_PACKET_SIZE>* RecvPackets;
+		//
+		std::unordered_map<std::string, NetClient*> Clients;
+		std::unordered_map<std::string, NetServer*> Servers;
 
 		OVERLAPPED SendIOCPOverlap = {};
 		OVERLAPPED RecvIOCPOverlap = {};
@@ -172,6 +175,16 @@ namespace KNet
 			}
 			RecvThread->join();
 			//
+			//	Cleanup Client/Server Objects
+			for (auto _Client : Clients)
+			{
+				delete _Client.second;
+			}
+			for (auto _Server : Servers)
+			{
+				delete _Server.second;
+			}
+			//
 			//	Close our sockets
 			if (SOCKET_ERROR == closesocket(_SocketSend)) {
 				printf("Close Socket Failed - Error: (%i)\n", GetLastError());
@@ -265,10 +278,16 @@ namespace KNet
 						//
 						//	Cleanup the sent packet
 						NetPacket_Send* Packet = reinterpret_cast<NetPacket_Send*>(Result.RequestContext);
-						//
-						//	Hand the packet over to the main thread to be stored back in the SendBufferPool
-						if (!PostQueuedCompletionStatus(PointIOCP, NULL, (ULONG_PTR)PointCompletion::SendRelease, &Packet->Overlap)) {
-							printf("Post Queued Completion Status - Send Error: %i\n", GetLastError());
+						if (Packet->bChildPacket)
+						{
+							((NetClient*)Packet->Child)->ReturnPacket(Packet);
+						}
+						else {
+							//
+							//	Hand the packet over to the main thread to be stored back in the SendBufferPool
+							if (!PostQueuedCompletionStatus(PointIOCP, NULL, (ULONG_PTR)PointCompletion::SendRelease, &Packet->Overlap)) {
+								printf("Post Queued Completion Status - Send Error: %i\n", GetLastError());
+							}
 						}
 					}
 					else { printf("Dequeued 0 Send Completions\n"); }
@@ -329,12 +348,69 @@ namespace KNet
 						bool bRecycle = false;
 						//
 						//	Try to read Operation ID
-						PacketID Operation;
-						if (Packet->read<PacketID>(Operation)) {
-							printf("opID: %i\n", (int)Operation);
+						PacketID OpID;
+						if (Packet->read<PacketID>(OpID)) {
+							printf("opID: %i\n", (int)OpID);
 							//
-							//	Grab the source address information
-							SOCKADDR_INET* Source = Packet->GetAddress();
+							//	Try to read Client ID
+							ClientID ClID;
+							if (Packet->read<ClientID>(ClID)) {
+								printf("clID: %i\n", (int)ClID);
+								//
+								//	Grab the source address information
+								SOCKADDR_INET* Source = Packet->GetAddress();
+								std::string IP(inet_ntoa(Source->Ipv4.sin_addr));
+								u_short PORT = ntohs(Source->Ipv4.sin_port);
+								std::string ID(IP + ":" + std::to_string(PORT));
+								//
+								//	Client logic
+								if (ClID == ClientID::Client)
+								{
+									if (Clients.count(ID))
+									{
+										NetClient* _Client = Clients[ID];
+										if (OpID == PacketID::Acknowledgement)
+										{
+											printf("Recv A\n");
+											_Client->ProcessPacket_Acknowledgement(Packet);
+											bRecycle = true;
+										}
+										else if (OpID == PacketID::Handshake)
+										{
+											NetPacket_Send* ACK = _Client->ProcessPacket_Handshake(Packet);
+											printf("Send A\n");
+											SendPacket(ACK);
+										}
+										else if (OpID == PacketID::Data)
+										{
+											NetPacket_Send* ACK = _Client->ProcessPacket_Data(Packet);
+										}
+									}
+									else {
+										Clients[ID] = new NetClient(IP, PORT);
+										printf("New Client\n");
+									}
+								}
+								//
+								//	Server logic
+								else if (ClID == ClientID::Server)
+								{
+									if (Servers.count(ID))
+									{
+										NetServer* _Server = Servers[ID];
+									}
+									else {
+										Servers[ID] = new NetServer(IP, PORT);
+										printf("New Server\n");
+									}
+								}
+							}
+							//
+							//	Unable to read Client ID
+							else {
+								printf("Unable To Read Packet clID\n");
+								bRecycle = true;
+							}
 						}
 						//
 						//	Unable to read Operation ID
