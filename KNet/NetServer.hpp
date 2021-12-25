@@ -2,7 +2,7 @@
 
 namespace KNet
 {
-	class NetServer
+	class NetServer : private OVERLAPPED
 	{
 		NetAddress* _ADDR_RECV;
 		std::string _IP_RECV;
@@ -12,7 +12,7 @@ namespace KNet
 		//	WARN: may be incorrect port_recv
 		//	TODO: get the recv port from the remote client somehow..
 		NetServer(std::string IP, u_short PORT)
-			: _IP_RECV(IP), _PORT_RECV(PORT + 1)
+			: _IP_RECV(IP), _PORT_RECV(PORT + 1), OVERLAPPED()
 		{
 			//	WARN: can run out of free objects
 			//	TODO: find another way to store the address in this object..
@@ -29,6 +29,10 @@ namespace KNet
 				&& _ADDR.Ipv4.sin_port == other.Ipv4.sin_port
 				&& _ADDR.Ipv4.sin_family == other.Ipv4.sin_family;
 		}*/
+
+		//
+		//	So we can hide our OVERLAPPED variables
+		friend class NetPoint;
 	};
 }
 

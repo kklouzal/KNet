@@ -47,11 +47,12 @@ namespace KNet
 		Data
 	};
 	enum class ClientID : unsigned char {
+		OutOfBand,
 		Server,
 		Client
 	};
+	class NetPoint;
 }
-
 #include "NetClient.hpp"
 #include "NetServer.hpp"
 //
