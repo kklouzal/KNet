@@ -387,11 +387,11 @@ namespace KNet
 							NetClient* _Client = Clients[ID];
 							if (OpID == PacketID::Acknowledgement) {
 								_Client->ProcessPacket_Acknowledgement(Packet);
-								Packet->bRecycle = true;
+								Packet->bRecycle = true;	//	Recycle the incoming ACK packet
 							}
 							else if (OpID == PacketID::Handshake) {
 								SendPacket(_Client->ProcessPacket_Handshake(Packet));
-								Packet->bRecycle = true;
+								Packet->bRecycle = true;	//	Recycle the incoming handshake packet
 							}
 							else if (OpID == PacketID::Data) {
 								SendPacket(_Client->ProcessPacket_Data(Packet));

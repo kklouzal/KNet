@@ -31,11 +31,7 @@ int main()
             if (Pkt)
             {
                 Pkt->AddDestination(RecvAddr);
-                //Pkt->write<KNet::PacketID>(KNet::PacketID::Handshake);
-                //*Pkt->PID = KNet::PacketID::Handshake;
                 Pkt->SetPID(KNet::PacketID::Handshake);
-                //Pkt->write<KNet::ClientID>(KNet::ClientID::Client);
-                //*Pkt->CID = KNet::ClientID::Client;
                 Pkt->SetCID(KNet::ClientID::Client);
                 Point->SendPacket(Pkt);
             }

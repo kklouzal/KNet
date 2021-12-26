@@ -8,7 +8,7 @@ namespace KNet
 		//	Record the UniqueID of our most recent incoming packet and the UniqueID of our next outgoing packet
 		std::atomic<uintmax_t> IN_LastID = 0;	//	Incoming UniqueID
 		std::atomic<uintmax_t> OUT_NextID = 1;	//	Outgoing UniqueID
-		std::unordered_map<unsigned long, NetPacket_Send*> OUT_Packets;	//	Unacknowledged outgoing packets
+		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets;	//	Unacknowledged outgoing packets
 
 	public:
 		inline Reliable_Latest_Channel() {}
@@ -24,6 +24,22 @@ namespace KNet
 			//	TODO: Store the OUT_Packet during Point->SendPacket()..
 			Packet->bDontRelease = true;							//	Needs to wait for an ACK
 			OUT_Packets[UniqueID] = Packet;							//	Store this packet until it gets ACK'd
+		}
+
+		inline NetPacket_Send* TryACK(uintmax_t UniqueID)
+		{
+			//
+			//	If we have an outgoing packet waiting to be acknowledged
+			if (OUT_Packets.count(UniqueID))
+			{
+				NetPacket_Send* AcknowledgedPacket = OUT_Packets[UniqueID];
+				OUT_Packets[UniqueID] = nullptr;
+				AcknowledgedPacket->bDontRelease = false;
+				return AcknowledgedPacket;
+			}
+			//
+			//	No waiting packet, return nullptr
+			return nullptr;
 		}
 
 		//	Receives a packet

@@ -68,11 +68,6 @@ namespace KNet
 				Packet->bChildPacket = true;
 				Packet->Child = this;
 				Packet->AddDestination(_ADDR_RECV);
-				//
-				//Packet->write<PacketID>(PacketID::Data);	//	This is a Data Packet
-				//Packet->write<ClientID>(ClientID::Client);	//	Going to this NetClient
-				//*Packet->PID = PacketID::Data;
-				//*Packet->CID = ClientID::Client;
 				Packet->SetPID(PacketID::Data);
 				Packet->SetCID(ClientID::Client);
 				//
@@ -106,14 +101,30 @@ namespace KNet
 			Packet->read<PacketID>(PID);
 			if (PID == PacketID::Handshake)
 			{
-				// / std::chrono::high_resolution_clock::period::den
-				printf("\tRecv_Handshake_ACK %fms\n", ms.count() * 0.001f);
+				//printf("\tRecv_Handshake_ACK %fms\n", ms.count() * 0.001f);
 			}
 			else if (PID == PacketID::Data)
 			{
+				ChannelID CHID;
 				uintmax_t UniqueID;
+				Packet->read<ChannelID>(CHID);
 				Packet->read<uintmax_t>(UniqueID);
 				printf("\tRecv_Data_ACK PID: %i UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
+				if (CHID == ChannelID::Reliable_Any) {
+
+				}
+				else if (CHID == ChannelID::Reliable_Latest) {
+					NetPacket_Send* AcknowledgedPacket = Reliable_Latest->TryACK(UniqueID);
+					//
+					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
+					if (AcknowledgedPacket) {
+						printf("Release acknowledged send packet\n");
+						ReturnPacket(AcknowledgedPacket);
+					}
+				}
+				else if (CHID == ChannelID::Ordered) {
+
+				}
 			}
 		}
 		inline NetPacket_Send* ProcessPacket_Handshake(NetPacket_Recv* Packet)
@@ -129,10 +140,6 @@ namespace KNet
 			if (ACK)
 			{
 				ACK->AddDestination(_ADDR_RECV);
-				//ACK->write<PacketID>(PacketID::Acknowledgement);
-				//ACK->write<ClientID>(ClientID::Client);
-				//*ACK->PID = PacketID::Acknowledgement;
-				//*ACK->CID = ClientID::Client;
 				ACK->SetPID(PacketID::Acknowledgement);
 				ACK->SetCID(ClientID::Client);
 				ACK->write<long long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
@@ -175,16 +182,13 @@ namespace KNet
 			if (ACK)
 			{
 				ACK->AddDestination(_ADDR_RECV);
-				//ACK->write<PacketID>(PacketID::Acknowledgement);
-				//ACK->write<ClientID>(ClientID::Client);
-				//*ACK->PID = PacketID::Acknowledgement;
-				//*ACK->CID = ClientID::Client;
 				ACK->SetPID(PacketID::Acknowledgement);
 				ACK->SetCID(ClientID::Client);
 				ACK->write<long long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 				ACK->write<PacketID>(PacketID::Data);
+				ACK->write<ChannelID>(CHID);
 				ACK->write<uintmax_t>(UniqueID);
-				//	TODO: add more data..like actual packet ids
+				//	TODO: add more data..?
 			}
 			if (CHID == ChannelID::Reliable_Any)
 			{
