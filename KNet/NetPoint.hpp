@@ -265,20 +265,21 @@ namespace KNet
 		//	Threadded Send Function
 		void Thread_Send() {
 			printf("Send Thread Started\n");
+			DWORD numberOfBytes = 0;
+			ULONG_PTR completionKey;
+			OVERLAPPED* pOverlapped = 0;
+			RIORESULT Result;
+			ULONG numResults;
 			while (bRunning.load()) {
 				//
 				//	Wait until we have a send event
-				DWORD numberOfBytes = 0;
-				ULONG_PTR completionKey;
-				OVERLAPPED* pOverlapped = 0;
 				KN_CHECK_RESULT(GetQueuedCompletionStatus(SendIOCP, &numberOfBytes, &completionKey, &pOverlapped, INFINITE), false);
 				//
 				//	Send Completed Operation
 				if (completionKey == (ULONG_PTR)SendCompletion::SendComplete) {
 					//
 					//	Dequeue A Send
-					RIORESULT Result;
-					ULONG numResults = g_RIO.RIODequeueCompletion(SendQueue, &Result, 1);
+					numResults = g_RIO.RIODequeueCompletion(SendQueue, &Result, 1);
 					//
 					//	WARN: should probably handle this..
 					//	TODO: abort packet processing when corrupt
@@ -335,20 +336,21 @@ namespace KNet
 		//	Threadded Receive Function
 		void Thread_Recv() {
 			printf("Recv Thread Started\n");
+			DWORD numberOfBytes = 0;
+			ULONG_PTR completionKey = 0;
+			OVERLAPPED* pOverlapped = 0;
+			RIORESULT Result;
+			ULONG numResults;
 			while (bRunning.load()) {
 				//
 				//	Wait until we have a receive event
-				DWORD numberOfBytes = 0;
-				ULONG_PTR completionKey = 0;
-				OVERLAPPED* pOverlapped = 0;
 				KN_CHECK_RESULT(GetQueuedCompletionStatus(RecvIOCP, &numberOfBytes, &completionKey, &pOverlapped, INFINITE), false);
 				//
 				//	Received New Packet Operation
 				if (completionKey == (ULONG_PTR)RecvCompletion::RecvComplete) {
 					//
 					//	Dequeue A Receive
-					RIORESULT Result;
-					ULONG numResults = g_RIO.RIODequeueCompletion(RecvQueue, &Result, 1);
+					numResults = g_RIO.RIODequeueCompletion(RecvQueue, &Result, 1);
 					//
 					//	WARN: should probably handle this..
 					//	TODO: abort packet processing when corrupt

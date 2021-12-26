@@ -95,7 +95,7 @@ namespace KNet
 			return Packet;
 		}
 
-		void ProcessPacket_Acknowledgement(NetPacket_Recv* Packet)
+		inline void ProcessPacket_Acknowledgement(NetPacket_Recv* Packet)
 		{
 			long long SentTime;
 			Packet->read<long long>(SentTime);
@@ -116,7 +116,7 @@ namespace KNet
 				printf("\tRecv_Data_ACK PID: %i UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
 			}
 		}
-		NetPacket_Send* ProcessPacket_Handshake(NetPacket_Recv* Packet)
+		inline NetPacket_Send* ProcessPacket_Handshake(NetPacket_Recv* Packet)
 		{
 			//
 			//	Push the received packet into this client
@@ -143,7 +143,7 @@ namespace KNet
 			//	Return the acknowledgement to be sent from the calling NetPoint
 			return ACK;
 		}
-		NetPacket_Send* ProcessPacket_Data(NetPacket_Recv* Packet)
+		inline NetPacket_Send* ProcessPacket_Data(NetPacket_Recv* Packet)
 		{
 			ChannelID CHID;
 			Packet->read<ChannelID>(CHID);

@@ -92,7 +92,7 @@ int main()
             Pkt4->write<const char*>("This is a reliable_Latest packet");
             Point->SendPacket(Pkt4);
         }
-        std::system("PAUSE");
+        //std::system("PAUSE");
     }
 
     //

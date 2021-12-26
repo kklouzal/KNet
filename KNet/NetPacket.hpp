@@ -44,7 +44,7 @@ namespace KNet {
 			delete[] BinaryData;
 		}
 
-		void Compress()
+		inline void Compress()
 		{
 			//memcpy(&SendBuffer[Packet->Offset], Packet->BinaryData, Packet->size());
 			if (!LZ4_compress_default(&BinaryData[0], &DataBuffer[Offset], (int)m_write, MAX_PACKET_SIZE)) {
@@ -142,7 +142,7 @@ namespace KNet {
 		//
 		//	Decompress our raw incoming data
 		//	Also reset the packet to it's initial state
-		void Decompress(const ULONG Size)
+		inline void Decompress(const ULONG Size)
 		{
 			//memcpy(&Packet->BinaryData[0], &RecvBuffer[Packet->Offset], Bytes);
 			LZ4_decompress_safe(&DataBuffer[Offset], &BinaryData[0], Size, MAX_PACKET_SIZE);
