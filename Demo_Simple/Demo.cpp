@@ -21,18 +21,22 @@ int main()
     //  Hold onto any connected clients
     std::deque<KNet::NetClient*> ConnectedClients;
 
-    for (auto i = 0; i < 20; i++) // 20 iterations ensures packets are being recycled
+    for (auto i = 0; i < 256; i++) // 20 iterations ensures packets are being recycled
     {
         //
         //  Send a test packet(s)
-        for (auto j = 1; j <= i*i; j++)
+        for (auto j = 0; j <= 16; j++)
         {
             KNet::NetPacket_Send* Pkt = KNet::SendPacketPool->GetFreeObject();
             if (Pkt)
             {
                 Pkt->AddDestination(RecvAddr);
-                Pkt->write<KNet::PacketID>(KNet::PacketID::Handshake);
-                Pkt->write<KNet::ClientID>(KNet::ClientID::Client);
+                //Pkt->write<KNet::PacketID>(KNet::PacketID::Handshake);
+                //*Pkt->PID = KNet::PacketID::Handshake;
+                Pkt->SetPID(KNet::PacketID::Handshake);
+                //Pkt->write<KNet::ClientID>(KNet::ClientID::Client);
+                //*Pkt->CID = KNet::ClientID::Client;
+                Pkt->SetCID(KNet::ClientID::Client);
                 Point->SendPacket(Pkt);
             }
         }

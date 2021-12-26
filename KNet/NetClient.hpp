@@ -14,7 +14,9 @@ namespace KNet
 		ULONG pEntriesCount;
 		HANDLE IOCP;
 		enum class Completions : ULONG_PTR {
-			RecvUnread
+			RecvUnread,
+			ReleaseACK,
+			ReleaseSEND
 		};
 
 		//
@@ -67,8 +69,12 @@ namespace KNet
 				Packet->Child = this;
 				Packet->AddDestination(_ADDR_RECV);
 				//
-				Packet->write<PacketID>(PacketID::Data);	//	This is a Data Packet
-				Packet->write<ClientID>(ClientID::Client);	//	Going to this NetClient
+				//Packet->write<PacketID>(PacketID::Data);	//	This is a Data Packet
+				//Packet->write<ClientID>(ClientID::Client);	//	Going to this NetClient
+				//*Packet->PID = PacketID::Data;
+				//*Packet->CID = ClientID::Client;
+				Packet->SetPID(PacketID::Data);
+				Packet->SetCID(ClientID::Client);
 				//
 				//	Stamp Channel Information
 				//
@@ -120,12 +126,15 @@ namespace KNet
 			NetPacket_Send* ACK = ACKPacketPool->GetFreeObject();
 			ACK->bChildPacket = true;	// packet will get returned to us
 			ACK->Child = this;
-			ACK->bAckPacket = true;		// packet returns to correct pool
 			if (ACK)
 			{
 				ACK->AddDestination(_ADDR_RECV);
-				ACK->write<PacketID>(PacketID::Acknowledgement);
-				ACK->write<ClientID>(ClientID::Client);
+				//ACK->write<PacketID>(PacketID::Acknowledgement);
+				//ACK->write<ClientID>(ClientID::Client);
+				//*ACK->PID = PacketID::Acknowledgement;
+				//*ACK->CID = ClientID::Client;
+				ACK->SetPID(PacketID::Acknowledgement);
+				ACK->SetCID(ClientID::Client);
 				ACK->write<long long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 				ACK->write<PacketID>(PacketID::Handshake);
 				//	TODO: add more data..like actual packet ids
@@ -163,12 +172,15 @@ namespace KNet
 			NetPacket_Send* ACK = ACKPacketPool->GetFreeObject();
 			ACK->bChildPacket = true;	// packet will get returned to us
 			ACK->Child = this;
-			ACK->bAckPacket = true;		// packet returns to correct pool
 			if (ACK)
 			{
 				ACK->AddDestination(_ADDR_RECV);
-				ACK->write<PacketID>(PacketID::Acknowledgement);
-				ACK->write<ClientID>(ClientID::Client);
+				//ACK->write<PacketID>(PacketID::Acknowledgement);
+				//ACK->write<ClientID>(ClientID::Client);
+				//*ACK->PID = PacketID::Acknowledgement;
+				//*ACK->CID = ClientID::Client;
+				ACK->SetPID(PacketID::Acknowledgement);
+				ACK->SetCID(ClientID::Client);
 				ACK->write<long long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 				ACK->write<PacketID>(PacketID::Data);
 				ACK->write<uintmax_t>(UniqueID);
@@ -196,20 +208,18 @@ namespace KNet
 			return ACK;
 		}
 
-		//
-		//	WARN: This is obsolete.
-		//	TODO: Return packets using IOCP.
 		void ReturnPacket(NetPacket_Send* Packet)
 		{
-			if (Packet->bAckPacket)
+			
+			if (Packet->GetPID() == PacketID::Acknowledgement)
 			{
 				printf("->ReturnACK\n");
-				ACKPacketPool->ReturnUsedObject(Packet);
+				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::ReleaseACK, &Packet->Overlap), false);
 			}
 			else
 			{
 				printf("->ReturnSEND\n");
-				SendPacketPool->ReturnUsedObject(Packet);
+				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::ReleaseSEND, &Packet->Overlap), false);
 			}
 		}
 
@@ -227,15 +237,15 @@ namespace KNet
 			for (unsigned int i = 0; i < pEntriesCount; i++) {
 				//
 				//	Release Send Packet Operation
-				//if (pEntries[i].lpCompletionKey == (ULONG_PTR)PointCompletion::SendRelease) {
-				//	NetPacket_Send* Packet = reinterpret_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer);
-				//	Packet->m_write = 0;
-				//	KNet::SendPacketPool->ReturnUsedObject(Packet);
-				//}
-				////
-				////	Unread Packet Operation
-				//else if (pEntries[i].lpCompletionKey == (ULONG_PTR)Completions::RecvUnread) {
-				_Packets.push_back(reinterpret_cast<NetPacket_Recv*>(pEntries[i].lpOverlapped->Pointer));
+				if (pEntries[i].lpCompletionKey == (ULONG_PTR)Completions::RecvUnread) {
+					_Packets.push_back(reinterpret_cast<NetPacket_Recv*>(pEntries[i].lpOverlapped->Pointer));
+				}
+				else if (pEntries[i].lpCompletionKey == (ULONG_PTR)Completions::ReleaseACK) {
+					ACKPacketPool->ReturnUsedObject(reinterpret_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
+				}
+				else if (pEntries[i].lpCompletionKey == (ULONG_PTR)Completions::ReleaseSEND) {
+					SendPacketPool->ReturnUsedObject(reinterpret_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
+				}
 			}
 			return _Packets;
 		}

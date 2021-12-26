@@ -29,19 +29,6 @@ namespace KNet
 	const DWORD PENDING_RECVS = 1024;	//	Internal NetPoint recv packets
 	const DWORD GLOBAL_SENDS = 1024;	//	Global PeerNet send packets
 	const DWORD GLOBAL_ADDRS = 1024;	//	Global PeerNet addresses
-}
-
-#include "NetAddress.hpp"
-#include "NetPacket.hpp"
-#include "NetPool.hpp"
-
-namespace KNet
-{
-	//
-	//	Packets hold their data along with an address [(Address)+(Data)]=MaxSize
-	NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>* SendPacketPool = nullptr;
-	//
-	NetPool<NetAddress, ADDR_SIZE>* AddressPool = nullptr;
 	//
 	//	Internal Packet IDs
 	enum class PacketID : uint8_t {
@@ -84,6 +71,19 @@ namespace KNet
 		//	Guarentees all packets will be received and processed in the order they were sent
 		Ordered
 	};
+}
+
+#include "NetAddress.hpp"
+#include "NetPacket.hpp"
+#include "NetPool.hpp"
+
+namespace KNet
+{
+	//
+	//	Packets hold their data along with an address [(Address)+(Data)]=MaxSize
+	NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>* SendPacketPool = nullptr;
+	//
+	NetPool<NetAddress, ADDR_SIZE>* AddressPool = nullptr;
 	class NetPoint;
 }
 //

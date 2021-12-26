@@ -239,7 +239,6 @@ namespace KNet
 				//	Release Send Packet Operation
 				if (pEntries[i].lpCompletionKey == (ULONG_PTR)PointCompletion::SendRelease) {
 					NetPacket_Send* Packet = reinterpret_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer);
-					Packet->m_write = 0;
 					KNet::SendPacketPool->ReturnUsedObject(Packet);
 				}
 				//
@@ -296,6 +295,7 @@ namespace KNet
 							if (!Packet->bDontRelease) {
 								//	WARN: This is a race condition, Send_Thread communicating with Recv_Thread directly..
 								//	TODO: Use IOCP to return packets..
+								
 								((NetClient*)Packet->Child)->ReturnPacket(Packet);
 							}
 						}
@@ -361,78 +361,60 @@ namespace KNet
 						Packet->Decompress(Result.BytesTransferred);
 						Packet->bRecycle = false;
 						//
-						//	Try to read Operation ID
-						PacketID OpID;
-						if (Packet->read<PacketID>(OpID)) {
+						//	Try to read Packet Header
+						PacketID OpID = Packet->GetPID();
+						ClientID ClID = Packet->GetCID();
+						//
+						//	Grab the source address information
+						SOCKADDR_INET* Source = Packet->GetAddress();
+						std::string IP(inet_ntoa(Source->Ipv4.sin_addr));
+						u_short PORT = ntohs(Source->Ipv4.sin_port);
+						std::string ID(IP + ":" + std::to_string(PORT));
+						//
+						//	Client logic
+						if (ClID == ClientID::Client)
+						{
 							//
-							//	Try to read Client ID
-							ClientID ClID;
-							if (Packet->read<ClientID>(ClID)) {
-								//
-								//	Grab the source address information
-								SOCKADDR_INET* Source = Packet->GetAddress();
-								std::string IP(inet_ntoa(Source->Ipv4.sin_addr));
-								u_short PORT = ntohs(Source->Ipv4.sin_port);
-								std::string ID(IP + ":" + std::to_string(PORT));
-								//
-								//	Client logic
-								if (ClID == ClientID::Client)
-								{
-									//
-									//	Create a new NetClient if one does not already exist
-									if (!Clients.count(ID))
-									{
-										Clients.emplace(ID, new NetClient(IP, PORT));
-										KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, (ULONG_PTR)PointCompletion::ClientUpdate, Clients[ID]), false);
-									}
-									//
-									//	Grab our NetClient object
-									NetClient* _Client = Clients[ID];
-									if (OpID == PacketID::Acknowledgement) {
-										_Client->ProcessPacket_Acknowledgement(Packet);
-										Packet->bRecycle = true;
-									}
-									else if (OpID == PacketID::Handshake) {
-										SendPacket(_Client->ProcessPacket_Handshake(Packet));
-										Packet->bRecycle = true;
-									}
-									else if (OpID == PacketID::Data) {
-										SendPacket(_Client->ProcessPacket_Data(Packet));
-									}
-								}
-								//
-								//	TODO: Server logic
-								else if (ClID == ClientID::Server)
-								{
-									if (Servers.count(ID))
-									{
-										NetServer* _Server = Servers[ID];
-									}
-									else {
-										Servers[ID] = new NetServer(IP, PORT);
-										printf("\tNew Server\n");
-									}
-								}
-								//
-								//	OutOfBand logic
-								else if (ClID == ClientID::OutOfBand) {
-									//
-									//	Hand the packet over to the main thread for user processing
-									KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, (ULONG_PTR)PointCompletion::RecvUnread, &Packet->Overlap), false);
-								}
+							//	Create a new NetClient if one does not already exist
+							if (!Clients.count(ID))
+							{
+								Clients.emplace(ID, new NetClient(IP, PORT));
+								KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, (ULONG_PTR)PointCompletion::ClientUpdate, Clients[ID]), false);
 							}
 							//
-							//	Unable to read Client ID
-							else {
-								printf("ERR Unable To Read Packet clID\n");
+							//	Grab our NetClient object
+							NetClient* _Client = Clients[ID];
+							if (OpID == PacketID::Acknowledgement) {
+								_Client->ProcessPacket_Acknowledgement(Packet);
 								Packet->bRecycle = true;
+							}
+							else if (OpID == PacketID::Handshake) {
+								SendPacket(_Client->ProcessPacket_Handshake(Packet));
+								Packet->bRecycle = true;
+							}
+							else if (OpID == PacketID::Data) {
+								SendPacket(_Client->ProcessPacket_Data(Packet));
 							}
 						}
 						//
-						//	Unable to read Operation ID
-						else {
-							printf("ERR Unable To Read Packet opID\n");
-							Packet->bRecycle = true;
+						//	TODO: Server logic
+						else if (ClID == ClientID::Server)
+						{
+							if (Servers.count(ID))
+							{
+								NetServer* _Server = Servers[ID];
+							}
+							else {
+								Servers[ID] = new NetServer(IP, PORT);
+								printf("\tNew Server\n");
+							}
+						}
+						//
+						//	OutOfBand logic
+						else if (ClID == ClientID::OutOfBand) {
+							//
+							//	Hand the packet over to the main thread for user processing
+							KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, (ULONG_PTR)PointCompletion::RecvUnread, &Packet->Overlap), false);
 						}
 						//
 						//	Immediately recycle the packet by using it to queue up a new receive operation
@@ -452,7 +434,6 @@ namespace KNet
 				//	Release Recv Packet Operation
 				else if (completionKey == (ULONG_PTR)RecvCompletion::RecvRelease) {
 					NetPacket_Recv* Packet = reinterpret_cast<NetPacket_Recv*>(pOverlapped->Pointer);
-					Packet->m_read = 0;
 					//
 					//	Queue up a new receive
 					KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, Packet), false);

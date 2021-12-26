@@ -5,26 +5,36 @@ namespace KNet {
 	//	Send Packet
 	class NetPacket_Send : public RIO_BUF {
 	public:
-		alignas(alignof(std::max_align_t)) char* const DataBuffer;
 		OVERLAPPED Overlap;
+		alignas(alignof(std::max_align_t)) char* const DataBuffer;
 		alignas(alignof(std::max_align_t)) char* const BinaryData;
 		size_t m_write;
+		//
+		//	Packet Header
+		PacketID* PID;
+		ClientID* CID;
 
 	public:
 		PRIO_BUF Address = nullptr;
 		bool bChildPacket;
 		void* Child = nullptr;
-		bool bAckPacket;
 		bool bDontRelease;
+
 
 		NetPacket_Send(char* const Buffer) :
 			RIO_BUF(),
-			DataBuffer(Buffer),
 			Overlap(OVERLAPPED()),
+			DataBuffer(Buffer),
 			BinaryData(new char[MAX_PACKET_SIZE]),
-			m_write(0),
+			//
+			//	Map our packet header variables
+			PID((PacketID*)&BinaryData[0]),
+			CID((ClientID*)&BinaryData[sizeof(PacketID)]),
+			//
+			//	Offset the m_write position by the size of our header
+			m_write(sizeof(PacketID)+sizeof(ClientID)),
+			//
 			bChildPacket(false),
-			bAckPacket(false),
 			bDontRelease(false)
 		{
 			Overlap.Pointer = this;
@@ -40,12 +50,33 @@ namespace KNet {
 			if (!LZ4_compress_default(&BinaryData[0], &DataBuffer[Offset], (int)m_write, MAX_PACKET_SIZE)) {
 				printf("Packet Compression Failed\n");
 			}
+			m_write = sizeof(PacketID) + sizeof(ClientID);
 		}
 
 		//	TODO: Handle multiple destinations using vector of addresses:
 		//		  Add Address into vector of destination addresses.
 		void AddDestination(PRIO_BUF Addr) {
 			Address = Addr;
+		}
+
+		void SetPID(PacketID ID)
+		{
+			std::memcpy(PID, &ID, sizeof(PacketID));
+		}
+
+		PacketID GetPID()
+		{
+			return *PID;
+		}
+
+		void SetCID(ClientID ID)
+		{
+			std::memcpy(CID, &ID, sizeof(ClientID));
+		}
+
+		ClientID GetCID()
+		{
+			return *CID;
 		}
 
 		//
@@ -72,22 +103,32 @@ namespace KNet {
 	//	Recv Packet
 	class NetPacket_Recv : public RIO_BUF {
 	public:
-		alignas(alignof(std::max_align_t)) char* const DataBuffer;
 		OVERLAPPED Overlap;
+		alignas(alignof(std::max_align_t)) char* const DataBuffer;
 		alignas(alignof(std::max_align_t)) char* const BinaryData;
 		size_t m_read;
 		bool bRecycle;
+		//
+		//	Packet Header
+		PacketID* PID;
+		ClientID* CID;
 
 	public:
 		PRIO_BUF Address = nullptr;
 
 		NetPacket_Recv(char* const Buffer) :
 			RIO_BUF(),
-			DataBuffer(Buffer),
 			Overlap(OVERLAPPED()),
+			DataBuffer(Buffer),
 			Address(new RIO_BUF),
 			BinaryData(new char[MAX_PACKET_SIZE]),
-			m_read(0),
+			//
+			//	Map our packet header variables
+			PID((PacketID*)&BinaryData[0]),
+			CID((ClientID*)&BinaryData[sizeof(PacketID)]),
+			//
+			//	Offset the m_write position by the size of our header
+			m_read(sizeof(PacketID) + sizeof(ClientID)),
 			bRecycle(false)
 		{
 				Overlap.Pointer = this;
@@ -102,12 +143,22 @@ namespace KNet {
 		{
 			//memcpy(&Packet->BinaryData[0], &RecvBuffer[Packet->Offset], Bytes);
 			LZ4_decompress_safe(&DataBuffer[Offset], &BinaryData[0], Size, MAX_PACKET_SIZE);
-			m_read = 0;
+			m_read = sizeof(PacketID) + sizeof(ClientID);
 		}
 
 		SOCKADDR_INET* GetAddress()
 		{
 			return reinterpret_cast<SOCKADDR_INET*>(&DataBuffer[Address->Offset]);
+		}
+
+		PacketID GetPID()
+		{
+			return *PID;
+		}
+
+		ClientID GetCID()
+		{
+			return *CID;
 		}
 
 		//
