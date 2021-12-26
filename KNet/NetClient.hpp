@@ -23,7 +23,7 @@ namespace KNet
 		//	NetChannels
 		Unreliable_Any_Channel* Unreliable_Any;
 		Unreliable_Latest_Channel* Unreliable_Latest;
-
+		Reliable_Any_Channel* Reliable_Any;
 		Reliable_Latest_Channel* Reliable_Latest;
 	public:
 
@@ -34,6 +34,7 @@ namespace KNet
 			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0),
 			Unreliable_Any(new Unreliable_Any_Channel()),
 			Unreliable_Latest(new Unreliable_Latest_Channel()),
+			Reliable_Any(new Reliable_Any_Channel()),
 			Reliable_Latest(new Reliable_Latest_Channel())
 		{
 			//	WARN: can run out of free objects
@@ -54,6 +55,7 @@ namespace KNet
 		~NetClient()
 		{
 			delete Reliable_Latest;
+			delete Reliable_Any;
 			delete Unreliable_Latest;
 			delete Unreliable_Any;
 			delete[] pEntries;
@@ -80,11 +82,11 @@ namespace KNet
 				} else if (CHID == ChannelID::Unreliable_Latest) {
 					Unreliable_Latest->StampPacket(Packet);
 				} else if (CHID == ChannelID::Reliable_Any) {
-					Unreliable_Any->StampPacket(Packet);
+					Reliable_Any->StampPacket(Packet);
 				} else if (CHID == ChannelID::Reliable_Latest) {
 					Reliable_Latest->StampPacket(Packet);
 				} else if (CHID == ChannelID::Ordered) {
-					Unreliable_Any->StampPacket(Packet);
+					Unreliable_Any->StampPacket(Packet);	//	todo: <--
 				}
 			}
 			return Packet;
@@ -111,19 +113,23 @@ namespace KNet
 				Packet->read<uintmax_t>(UniqueID);
 				printf("\tRecv_Data_ACK PID: %i UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
 				if (CHID == ChannelID::Reliable_Any) {
-
+					NetPacket_Send* AcknowledgedPacket = Reliable_Any->TryACK(UniqueID);
+					//
+					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
+					if (AcknowledgedPacket) {
+						ReturnPacket(AcknowledgedPacket);
+					}
 				}
 				else if (CHID == ChannelID::Reliable_Latest) {
 					NetPacket_Send* AcknowledgedPacket = Reliable_Latest->TryACK(UniqueID);
 					//
 					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
 					if (AcknowledgedPacket) {
-						printf("Release acknowledged send packet\n");
 						ReturnPacket(AcknowledgedPacket);
 					}
 				}
 				else if (CHID == ChannelID::Ordered) {
-
+					//	TODO: <--
 				}
 			}
 		}
@@ -192,10 +198,15 @@ namespace KNet
 			}
 			if (CHID == ChannelID::Reliable_Any)
 			{
+				//
+				//	Push the received packet into this client
+				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
 
 			}
 			else if (CHID == ChannelID::Reliable_Latest)
 			{
+				//
+				//	LATEST class packets only process new uniqueIDs
 				if (Reliable_Latest->TryReceive(Packet, UniqueID))
 				{
 					//

@@ -83,9 +83,11 @@ int main()
             auto Pkt2 = _Client->GetFreePacket<KNet::ChannelID::Unreliable_Latest>();
             Pkt2->write<const char*>("This is an Unreliable_Latest packet");
             Point->SendPacket(Pkt2);
-
+            auto Pkt3 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Any>();
+            Pkt3->write<const char*>("This is a Reliable_Any packet");
+            Point->SendPacket(Pkt3);
             auto Pkt4 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Latest>();
-            Pkt4->write<const char*>("This is a reliable_Latest packet");
+            Pkt4->write<const char*>("This is a Reliable_Latest packet");
             Point->SendPacket(Pkt4);
         }
         //std::system("PAUSE");
