@@ -143,6 +143,7 @@
     <ClInclude Include="KNet.hpp" />
     <ClInclude Include="lz4.h" />
     <ClInclude Include="NetAddress.hpp" />
+    <ClInclude Include="NetChannel_Unreliable.hpp" />
     <ClInclude Include="NetClient.hpp" />
     <ClInclude Include="NetPacket.hpp" />
     <ClInclude Include="NetPoint.hpp" />
@@ -151,7 +152,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lz4.c" />
-    <ClCompile Include="Source.cpp" />
+    <ClCompile Include="KNet.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

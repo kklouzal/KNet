@@ -37,7 +37,7 @@ int main()
             }
         }
 
-        std::system("PAUSE");
+        Sleep(1);
 
         //
         //  Get any received out-of-band packets
@@ -56,16 +56,36 @@ int main()
             printf("HANDLE NEW CLIENT\n");
         }
         //
-        //  Loop all connected clients for client specific packets
+        //  Loop all connected clients
         for (auto _Client : ConnectedClients)
         {
+            //
+            //  Check if each client has any new packets
             const auto Packets = _Client->GetPackets();
             for (auto _Packet : Packets)
             {
                 //
+                //  Read out the data we sent
+                const char* Dat;
+                if (_Packet->read<const char*>(Dat))
+                {
+                    printf("%s\n", Dat);
+                }
+                //
                 //  Release our packet when we're done with it
                 Point->ReleasePacket(_Packet);
             }
+            //
+            //  Send each client a packet on each channel
+            auto Pkt1 = _Client->GetFreePacket<KNet::ChannelID::Unreliable>();
+            Pkt1->write<const char*>("This is an Unreliable packet");
+            Point->SendPacket(Pkt1);
+            auto Pkt2 = _Client->GetFreePacket<KNet::ChannelID::Reliable>();
+            Pkt2->write<const char*>("This is a Reliable packet");
+            Point->SendPacket(Pkt2);
+            auto Pkt3 = _Client->GetFreePacket<KNet::ChannelID::Ordered>();
+            Pkt3->write<const char*>("This is an Ordered packet");
+            Point->SendPacket(Pkt3);
         }
         std::system("PAUSE");
     }

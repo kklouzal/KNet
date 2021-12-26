@@ -37,12 +37,15 @@
     <ClInclude Include="ErrorHandling.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NetChannel_Unreliable.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lz4.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source.cpp">
+    <ClCompile Include="KNet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -7,6 +7,7 @@ namespace KNet
 		NetAddress* _ADDR_RECV;
 		std::string _IP_RECV;
 		u_short _PORT_RECV;
+		NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>* ACKPacketPool = nullptr;
 		NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>* SendPacketPool = nullptr;
 		//
 		LPOVERLAPPED_ENTRY pEntries;
@@ -27,6 +28,8 @@ namespace KNet
 			//	TODO: find another way to store the address in this object..
 			_ADDR_RECV = AddressPool->GetFreeObject();
 			_ADDR_RECV->Resolve(_IP_RECV, _PORT_RECV);
+			//
+			ACKPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS);
 			SendPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS);
 			//
 			//	Create the IOCP handle
@@ -42,25 +45,61 @@ namespace KNet
 			CloseHandle(IOCP);
 		}
 
+		template <ChannelID CHID> NetPacket_Send* GetFreePacket()
+		{
+			NetPacket_Send* Packet = SendPacketPool->GetFreeObject();
+			if (Packet)
+			{
+				Packet->bChildPacket = true;
+				Packet->Child = this;
+				//
+				Packet->write<PacketID>(PacketID::Data);	//	This is a Data Packet
+				Packet->write<ClientID>(ClientID::Client);	//	Going to this NetClient
+				Packet->AddDestination(_ADDR_RECV);			//	Using it's receive address
+				Packet->write<ChannelID>(CHID);				//	On the specified ChannelID
+				Packet->write<uintmax_t>(12345);			//	With this UniqueID
+				Packet->write<bool>(false);					//	Ignoring old packets?
+			}
+			return Packet;
+		}
+
 		void ProcessPacket_Acknowledgement(NetPacket_Recv* Packet)
 		{
-			printf("\tProcessACK\n");
+			long long SentTime;
+			Packet->read<long long>(SentTime);
+			std::chrono::nanoseconds ns(std::chrono::high_resolution_clock::now().time_since_epoch().count() - SentTime);
+			std::chrono::microseconds ms = std::chrono::duration_cast<std::chrono::microseconds>(ns);
+			//
+			PacketID PID;
+			Packet->read<PacketID>(PID);
+			if (PID == PacketID::Handshake)
+			{
+				// / std::chrono::high_resolution_clock::period::den
+				//printf("\tRecv_Handshake_ACK %llu\n", ns.count());
+			}
+			else if (PID == PacketID::Data)
+			{
+				printf("\tRecv_Data_ACK %fms\n", ms.count()*0.001f);
+			}
 		}
 		NetPacket_Send* ProcessPacket_Handshake(NetPacket_Recv* Packet)
 		{
 			//
 			//	Push the received packet into this client
-			KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
+			//KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
 			//
 			//	Formulate an acknowledgement
-			NetPacket_Send* ACK = SendPacketPool->GetFreeObject();
+			NetPacket_Send* ACK = ACKPacketPool->GetFreeObject();
 			ACK->bChildPacket = true;	// packet will get returned to us
 			ACK->Child = this;
+			ACK->bAckPacket = true;		// packet returns to correct pool
 			if (ACK)
 			{
 				ACK->AddDestination(_ADDR_RECV);
 				ACK->write<PacketID>(PacketID::Acknowledgement);
 				ACK->write<ClientID>(ClientID::Client);
+				ACK->write<long long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+				ACK->write<PacketID>(PacketID::Handshake);
 				//	TODO: add more data..like actual packet ids
 			}
 			//
@@ -69,19 +108,29 @@ namespace KNet
 		}
 		NetPacket_Send* ProcessPacket_Data(NetPacket_Recv* Packet)
 		{
+			ChannelID CHID;
+			uintmax_t UniqueID;
+			bool bLatest;
+			Packet->read<ChannelID>(CHID);
+			Packet->read<uintmax_t>(UniqueID);
+			Packet->read<bool>(bLatest);
+
 			//
 			//	Push the received packet into this client
 			KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
 			//
 			//	Formulate an acknowledgement
-			NetPacket_Send* ACK = SendPacketPool->GetFreeObject();
+			NetPacket_Send* ACK = ACKPacketPool->GetFreeObject();
 			ACK->bChildPacket = true;	// packet will get returned to us
 			ACK->Child = this;
+			ACK->bAckPacket = true;		// packet returns to correct pool
 			if (ACK)
 			{
 				ACK->AddDestination(_ADDR_RECV);
 				ACK->write<PacketID>(PacketID::Acknowledgement);
 				ACK->write<ClientID>(ClientID::Client);
+				ACK->write<long long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+				ACK->write<PacketID>(PacketID::Data);
 				//	TODO: add more data..like actual packet ids
 			}
 			//
@@ -89,10 +138,21 @@ namespace KNet
 			return ACK;
 		}
 
+		//
+		//	WARN: This is obsolete.
+		//	TODO: Return packets using IOCP.
 		void ReturnPacket(NetPacket_Send* Packet)
 		{
-			printf("->ReturnACK\n");
-			SendPacketPool->ReturnUsedObject(Packet);
+			if (Packet->bAckPacket)
+			{
+				//printf("->ReturnACK\n");
+				ACKPacketPool->ReturnUsedObject(Packet);
+			}
+			else
+			{
+				printf("->ReturnSEND\n");
+				SendPacketPool->ReturnUsedObject(Packet);
+			}
 		}
 
 		//

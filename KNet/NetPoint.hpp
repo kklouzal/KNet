@@ -288,6 +288,8 @@ namespace KNet
 						NetPacket_Send* Packet = reinterpret_cast<NetPacket_Send*>(Result.RequestContext);
 						if (Packet->bChildPacket)
 						{
+							//	WARN: This is a race condition, Send_Thread communicating with Recv_Thread directly..
+							//	TODO: Use IOCP to return packets..
 							((NetClient*)Packet->Child)->ReturnPacket(Packet);
 						}
 						else {
@@ -336,7 +338,6 @@ namespace KNet
 				//
 				//	Received New Packet Operation
 				if (completionKey == (ULONG_PTR)RecvCompletion::RecvComplete) {
-					printf("Recv - ");
 					//
 					//	Dequeue A Receive
 					RIORESULT Result;
@@ -356,12 +357,10 @@ namespace KNet
 						//	Try to read Operation ID
 						PacketID OpID;
 						if (Packet->read<PacketID>(OpID)) {
-							printf("opID: %i ", (int)OpID);
 							//
 							//	Try to read Client ID
 							ClientID ClID;
 							if (Packet->read<ClientID>(ClID)) {
-								printf("clID: %i\n", (int)ClID);
 								//
 								//	Grab the source address information
 								SOCKADDR_INET* Source = Packet->GetAddress();
@@ -388,6 +387,7 @@ namespace KNet
 									}
 									else if (OpID == PacketID::Handshake) {
 										SendPacket(_Client->ProcessPacket_Handshake(Packet));
+										bRecycle = true;
 									}
 									else if (OpID == PacketID::Data) {
 										SendPacket(_Client->ProcessPacket_Data(Packet));

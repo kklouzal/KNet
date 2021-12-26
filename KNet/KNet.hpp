@@ -8,16 +8,17 @@
 #include <MSWSock.h>
 #pragma comment(lib, "ws2_32.lib")
 
-#include "ErrorHandling.hpp"
-
 //	STL Headers
 #include <thread>
 #include <atomic>
+#include <chrono>
 #include <deque>
 #include <string>
 #include <unordered_map>
 
 #include "lz4.h"
+
+#include "ErrorHandling.hpp"
 
 namespace KNet
 {
@@ -43,18 +44,26 @@ namespace KNet
 	NetPool<NetAddress, ADDR_SIZE>* AddressPool = nullptr;
 	//
 	//	Internal Packet IDs
-	enum class PacketID : unsigned char {
+	enum class PacketID : uint8_t {
 		Acknowledgement,
 		Handshake,
 		Data
 	};
-	enum class ClientID : unsigned char {
+	enum class ClientID : uint8_t {
 		OutOfBand,
 		Server,
 		Client
 	};
+	enum class ChannelID : uint8_t {
+		Unreliable,	//	May not receive all packets sent and no order guarentees
+		Reliable,	//	Will receive all sent packets but no order guarentees
+		Ordered		//	Will receive all sent packets in the same order they were sent
+	};
 	class NetPoint;
 }
+//
+#include "NetChannel_Unreliable.hpp"
+//
 #include "NetClient.hpp"
 #include "NetServer.hpp"
 //
