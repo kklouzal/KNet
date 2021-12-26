@@ -143,7 +143,10 @@
     <ClInclude Include="KNet.hpp" />
     <ClInclude Include="lz4.h" />
     <ClInclude Include="NetAddress.hpp" />
-    <ClInclude Include="NetChannel_Unreliable.hpp" />
+    <ClInclude Include="NetChannel_ReliableAny.hpp" />
+    <ClInclude Include="NetChannel_ReliableLatest.hpp" />
+    <ClInclude Include="NetChannel_UnreliableAny.hpp" />
+    <ClInclude Include="NetChannel_UnreliableLatest.hpp" />
     <ClInclude Include="NetClient.hpp" />
     <ClInclude Include="NetPacket.hpp" />
     <ClInclude Include="NetPoint.hpp" />

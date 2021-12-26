@@ -210,8 +210,11 @@ namespace KNet
 		}
 
 		void SendPacket(NetPacket_Send* Packet) {
-			//	Send the packet
-			KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, (ULONG_PTR)NetPoint::SendCompletion::SendInitiate, &Packet->Overlap), false);
+			if (Packet)
+			{
+				//	Send the packet
+				KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, (ULONG_PTR)NetPoint::SendCompletion::SendInitiate, &Packet->Overlap), false);
+			}
 		}
 
 		void ReleasePacket(NetPacket_Recv* Packet) {
@@ -288,9 +291,13 @@ namespace KNet
 						NetPacket_Send* Packet = reinterpret_cast<NetPacket_Send*>(Result.RequestContext);
 						if (Packet->bChildPacket)
 						{
-							//	WARN: This is a race condition, Send_Thread communicating with Recv_Thread directly..
-							//	TODO: Use IOCP to return packets..
-							((NetClient*)Packet->Child)->ReturnPacket(Packet);
+							//
+							//	Don't release the packet if it needs to wait for an ACK
+							if (!Packet->bDontRelease) {
+								//	WARN: This is a race condition, Send_Thread communicating with Recv_Thread directly..
+								//	TODO: Use IOCP to return packets..
+								((NetClient*)Packet->Child)->ReturnPacket(Packet);
+							}
 						}
 						else {
 							//
@@ -352,7 +359,7 @@ namespace KNet
 						//	Grab the packet and decompress the data
 						NetPacket_Recv* Packet = reinterpret_cast<NetPacket_Recv*>(Result.RequestContext);
 						Packet->Decompress(Result.BytesTransferred);
-						bool bRecycle = false;
+						Packet->bRecycle = false;
 						//
 						//	Try to read Operation ID
 						PacketID OpID;
@@ -383,11 +390,11 @@ namespace KNet
 									NetClient* _Client = Clients[ID];
 									if (OpID == PacketID::Acknowledgement) {
 										_Client->ProcessPacket_Acknowledgement(Packet);
-										bRecycle = true;
+										Packet->bRecycle = true;
 									}
 									else if (OpID == PacketID::Handshake) {
 										SendPacket(_Client->ProcessPacket_Handshake(Packet));
-										bRecycle = true;
+										Packet->bRecycle = true;
 									}
 									else if (OpID == PacketID::Data) {
 										SendPacket(_Client->ProcessPacket_Data(Packet));
@@ -418,18 +425,18 @@ namespace KNet
 							//	Unable to read Client ID
 							else {
 								printf("ERR Unable To Read Packet clID\n");
-								bRecycle = true;
+								Packet->bRecycle = true;
 							}
 						}
 						//
 						//	Unable to read Operation ID
 						else {
 							printf("ERR Unable To Read Packet opID\n");
-							bRecycle = true;
+							Packet->bRecycle = true;
 						}
 						//
 						//	Immediately recycle the packet by using it to queue up a new receive operation
-						if (bRecycle) {
+						if (Packet->bRecycle) {
 							KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, Packet), false);
 						}
 					}

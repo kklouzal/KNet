@@ -77,15 +77,16 @@ int main()
             }
             //
             //  Send each client a packet on each channel
-            auto Pkt1 = _Client->GetFreePacket<KNet::ChannelID::Unreliable>();
-            Pkt1->write<const char*>("This is an Unreliable packet");
+            auto Pkt1 = _Client->GetFreePacket<KNet::ChannelID::Unreliable_Any>();
+            Pkt1->write<const char*>("This is an Unreliable_Any packet");
             Point->SendPacket(Pkt1);
-            auto Pkt2 = _Client->GetFreePacket<KNet::ChannelID::Reliable>();
-            Pkt2->write<const char*>("This is a Reliable packet");
+            auto Pkt2 = _Client->GetFreePacket<KNet::ChannelID::Unreliable_Latest>();
+            Pkt2->write<const char*>("This is an Unreliable_Latest packet");
             Point->SendPacket(Pkt2);
-            auto Pkt3 = _Client->GetFreePacket<KNet::ChannelID::Ordered>();
-            Pkt3->write<const char*>("This is an Ordered packet");
-            Point->SendPacket(Pkt3);
+
+            auto Pkt4 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Latest>();
+            Pkt4->write<const char*>("This is a reliable_Latest packet");
+            Point->SendPacket(Pkt4);
         }
         std::system("PAUSE");
     }

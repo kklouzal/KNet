@@ -15,14 +15,17 @@ namespace KNet {
 		bool bChildPacket;
 		void* Child = nullptr;
 		bool bAckPacket;
+		bool bDontRelease;
 
 		NetPacket_Send(char* const Buffer) :
+			RIO_BUF(),
 			DataBuffer(Buffer),
 			Overlap(OVERLAPPED()),
 			BinaryData(new char[MAX_PACKET_SIZE]),
 			m_write(0),
 			bChildPacket(false),
-			bAckPacket(false)
+			bAckPacket(false),
+			bDontRelease(false)
 		{
 			Overlap.Pointer = this;
 		}
@@ -67,26 +70,28 @@ namespace KNet {
 	};
 	//
 	//	Recv Packet
-	//	TODO: get rid of extra 'Address RIO_BUFF' and calculate offset for using single buffer [(address)(packet)]
 	class NetPacket_Recv : public RIO_BUF {
 	public:
 		alignas(alignof(std::max_align_t)) char* const DataBuffer;
 		OVERLAPPED Overlap;
 		alignas(alignof(std::max_align_t)) char* const BinaryData;
 		size_t m_read;
+		bool bRecycle;
 
 	public:
 		PRIO_BUF Address = nullptr;
 
 		NetPacket_Recv(char* const Buffer) :
+			RIO_BUF(),
 			DataBuffer(Buffer),
 			Overlap(OVERLAPPED()),
 			Address(new RIO_BUF),
 			BinaryData(new char[MAX_PACKET_SIZE]),
-			m_read(0)
+			m_read(0),
+			bRecycle(false)
 		{
-			Overlap.Pointer = this;
-		}
+				Overlap.Pointer = this;
+			}
 
 		~NetPacket_Recv() {
 			delete Address;

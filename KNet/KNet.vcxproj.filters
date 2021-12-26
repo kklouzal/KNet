@@ -37,7 +37,16 @@
     <ClInclude Include="ErrorHandling.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="NetChannel_Unreliable.hpp">
+    <ClInclude Include="NetChannel_UnreliableAny.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NetChannel_UnreliableLatest.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NetChannel_ReliableAny.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NetChannel_ReliableLatest.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

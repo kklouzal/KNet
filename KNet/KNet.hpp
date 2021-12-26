@@ -55,14 +55,42 @@ namespace KNet
 		Client
 	};
 	enum class ChannelID : uint8_t {
-		Unreliable,	//	May not receive all packets sent and no order guarentees
-		Reliable,	//	Will receive all sent packets but no order guarentees
-		Ordered		//	Will receive all sent packets in the same order they were sent
+		//
+		//	Unreliable_Any:
+		//	No guarentee all packets will be received
+		//	Packets may arrive out of order
+		//	All received packets will be processed
+		Unreliable_Any,
+		//
+		//	Unreliable_Latest:
+		//	No guarentee all packets will be received
+		//	Packets may arrive out of order
+		//	Out of order packets received with an old UniqueID are dropped
+		Unreliable_Latest,
+		//
+		//	Reliable_Any:
+		//	Guarentees all packets will be received
+		//	Packets may arrive out of order
+		//	All received packets will be processed
+		Reliable_Any,
+		//
+		//	Reliable_Latest:
+		//	Guarentees all packets will be received
+		//	Packets may arrive out of order
+		//	Out of order packets received with an old UniqueID are dropped
+		Reliable_Latest,
+		//
+		//	Ordered:
+		//	Guarentees all packets will be received and processed in the order they were sent
+		Ordered
 	};
 	class NetPoint;
 }
 //
-#include "NetChannel_Unreliable.hpp"
+#include "NetChannel_UnreliableAny.hpp"
+#include "NetChannel_UnreliableLatest.hpp"
+#include "NetChannel_ReliableAny.hpp"
+#include "NetChannel_ReliableLatest.hpp"
 //
 #include "NetClient.hpp"
 #include "NetServer.hpp"

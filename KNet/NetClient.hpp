@@ -16,13 +16,23 @@ namespace KNet
 		enum class Completions : ULONG_PTR {
 			RecvUnread
 		};
+
+		//
+		//	NetChannels
+		Unreliable_Any_Channel* Unreliable_Any;
+		Unreliable_Latest_Channel* Unreliable_Latest;
+
+		Reliable_Latest_Channel* Reliable_Latest;
 	public:
 
 		//	WARN: may be incorrect port_recv
 		//	TODO: get the recv port from the remote client somehow..
 		NetClient(std::string IP, u_short PORT)
 			: OVERLAPPED(), _IP_RECV(IP), _PORT_RECV(PORT + 1),
-			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0)
+			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0),
+			Unreliable_Any(new Unreliable_Any_Channel()),
+			Unreliable_Latest(new Unreliable_Latest_Channel()),
+			Reliable_Latest(new Reliable_Latest_Channel())
 		{
 			//	WARN: can run out of free objects
 			//	TODO: find another way to store the address in this object..
@@ -41,6 +51,9 @@ namespace KNet
 
 		~NetClient()
 		{
+			delete Reliable_Latest;
+			delete Unreliable_Latest;
+			delete Unreliable_Any;
 			delete[] pEntries;
 			CloseHandle(IOCP);
 		}
@@ -52,13 +65,26 @@ namespace KNet
 			{
 				Packet->bChildPacket = true;
 				Packet->Child = this;
+				Packet->AddDestination(_ADDR_RECV);
 				//
 				Packet->write<PacketID>(PacketID::Data);	//	This is a Data Packet
 				Packet->write<ClientID>(ClientID::Client);	//	Going to this NetClient
-				Packet->AddDestination(_ADDR_RECV);			//	Using it's receive address
-				Packet->write<ChannelID>(CHID);				//	On the specified ChannelID
-				Packet->write<uintmax_t>(12345);			//	With this UniqueID
-				Packet->write<bool>(false);					//	Ignoring old packets?
+				//
+				//	Stamp Channel Information
+				//
+				//	WARN: Assumes all created packets will be sent and eventually received..
+				//	TODO: Stamp packets just before the Send_Thread actually sends it off..
+				if (CHID == ChannelID::Unreliable_Any) {
+					Unreliable_Any->StampPacket(Packet);
+				} else if (CHID == ChannelID::Unreliable_Latest) {
+					Unreliable_Latest->StampPacket(Packet);
+				} else if (CHID == ChannelID::Reliable_Any) {
+					Unreliable_Any->StampPacket(Packet);
+				} else if (CHID == ChannelID::Reliable_Latest) {
+					Reliable_Latest->StampPacket(Packet);
+				} else if (CHID == ChannelID::Ordered) {
+					Unreliable_Any->StampPacket(Packet);
+				}
 			}
 			return Packet;
 		}
@@ -75,11 +101,13 @@ namespace KNet
 			if (PID == PacketID::Handshake)
 			{
 				// / std::chrono::high_resolution_clock::period::den
-				//printf("\tRecv_Handshake_ACK %llu\n", ns.count());
+				printf("\tRecv_Handshake_ACK %fms\n", ms.count() * 0.001f);
 			}
 			else if (PID == PacketID::Data)
 			{
-				printf("\tRecv_Data_ACK %fms\n", ms.count()*0.001f);
+				uintmax_t UniqueID;
+				Packet->read<uintmax_t>(UniqueID);
+				printf("\tRecv_Data_ACK PID: %i UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
 			}
 		}
 		NetPacket_Send* ProcessPacket_Handshake(NetPacket_Recv* Packet)
@@ -109,15 +137,27 @@ namespace KNet
 		NetPacket_Send* ProcessPacket_Data(NetPacket_Recv* Packet)
 		{
 			ChannelID CHID;
-			uintmax_t UniqueID;
-			bool bLatest;
 			Packet->read<ChannelID>(CHID);
-			Packet->read<uintmax_t>(UniqueID);
-			Packet->read<bool>(bLatest);
 
-			//
-			//	Push the received packet into this client
-			KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
+			if (CHID == ChannelID::Unreliable_Any)
+			{
+				//
+				//	Push the received packet into this client
+				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
+				return nullptr;
+			}
+			uintmax_t UniqueID;
+			Packet->read<uintmax_t>(UniqueID);
+			if (CHID == ChannelID::Unreliable_Latest)
+			{
+				if (Unreliable_Latest->TryReceive(Packet, UniqueID))
+				{
+					//
+					//	Push the received packet into this client
+					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
+				}
+				return nullptr;
+			}
 			//
 			//	Formulate an acknowledgement
 			NetPacket_Send* ACK = ACKPacketPool->GetFreeObject();
@@ -131,7 +171,25 @@ namespace KNet
 				ACK->write<ClientID>(ClientID::Client);
 				ACK->write<long long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 				ACK->write<PacketID>(PacketID::Data);
+				ACK->write<uintmax_t>(UniqueID);
 				//	TODO: add more data..like actual packet ids
+			}
+			if (CHID == ChannelID::Reliable_Any)
+			{
+
+			}
+			else if (CHID == ChannelID::Reliable_Latest)
+			{
+				if (Reliable_Latest->TryReceive(Packet, UniqueID))
+				{
+					//
+					//	Push the received packet into this client
+					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
+				}
+			}
+			else if (CHID == ChannelID::Ordered)
+			{
+
 			}
 			//
 			//	Return the acknowledgement to be sent from the calling NetPoint
@@ -145,7 +203,7 @@ namespace KNet
 		{
 			if (Packet->bAckPacket)
 			{
-				//printf("->ReturnACK\n");
+				printf("->ReturnACK\n");
 				ACKPacketPool->ReturnUsedObject(Packet);
 			}
 			else
