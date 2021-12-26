@@ -127,10 +127,10 @@ namespace KNet {
 			PID((PacketID*)&BinaryData[0]),
 			CID((ClientID*)&BinaryData[sizeof(PacketID)]),
 			//
-			//	Offset the m_write position by the size of our header
+			//	Offset the m_read position by the size of our header
 			m_read(sizeof(PacketID) + sizeof(ClientID)),
 			bRecycle(false)
-		{
+			{
 				Overlap.Pointer = this;
 			}
 
@@ -139,11 +139,15 @@ namespace KNet {
 			delete[] BinaryData;
 		}
 
+		//
+		//	Decompress our raw incoming data
+		//	Also reset the packet to it's initial state
 		void Decompress(const ULONG Size)
 		{
 			//memcpy(&Packet->BinaryData[0], &RecvBuffer[Packet->Offset], Bytes);
 			LZ4_decompress_safe(&DataBuffer[Offset], &BinaryData[0], Size, MAX_PACKET_SIZE);
 			m_read = sizeof(PacketID) + sizeof(ClientID);
+			bRecycle = false;
 		}
 
 		SOCKADDR_INET* GetAddress()

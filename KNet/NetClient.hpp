@@ -213,12 +213,12 @@ namespace KNet
 			
 			if (Packet->GetPID() == PacketID::Acknowledgement)
 			{
-				printf("->ReturnACK\n");
+				//printf("->ReturnACK\n");
 				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::ReleaseACK, &Packet->Overlap), false);
 			}
 			else
 			{
-				printf("->ReturnSEND\n");
+				//printf("->ReturnSEND\n");
 				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::ReleaseSEND, &Packet->Overlap), false);
 			}
 		}

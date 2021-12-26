@@ -359,7 +359,6 @@ namespace KNet
 						//	Grab the packet and decompress the data
 						NetPacket_Recv* Packet = reinterpret_cast<NetPacket_Recv*>(Result.RequestContext);
 						Packet->Decompress(Result.BytesTransferred);
-						Packet->bRecycle = false;
 						//
 						//	Try to read Packet Header
 						PacketID OpID = Packet->GetPID();
