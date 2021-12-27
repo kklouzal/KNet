@@ -78,20 +78,34 @@ int main()
             //
             //  Send each client a packet on each channel
             auto Pkt1 = _Client->GetFreePacket<KNet::ChannelID::Unreliable_Any>();
-            Pkt1->write<const char*>("This is an Unreliable_Any packet");
-            Point->SendPacket(Pkt1);
+            if (Pkt1) {
+                Pkt1->write<const char*>("This is an Unreliable_Any packet");
+                Point->SendPacket(Pkt1);
+            } else { printf("PKT1 UNAVAILABLE!\n"); }
             auto Pkt2 = _Client->GetFreePacket<KNet::ChannelID::Unreliable_Latest>();
-            Pkt2->write<const char*>("This is an Unreliable_Latest packet");
-            Point->SendPacket(Pkt2);
+            if (Pkt2) {
+                Pkt2->write<const char*>("This is an Unreliable_Latest packet");
+                Point->SendPacket(Pkt2);
+            }
+            else { printf("PKT2 UNAVAILABLE!\n"); }
             auto Pkt3 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Any>();
-            Pkt3->write<const char*>("This is a Reliable_Any packet");
-            Point->SendPacket(Pkt3);
+            if (Pkt3) {
+                Pkt3->write<const char*>("This is a Reliable_Any packet");
+                Point->SendPacket(Pkt3);
+            }
+            else { printf("PKT3 UNAVAILABLE!\n"); }
             auto Pkt4 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Latest>();
-            Pkt4->write<const char*>("This is a Reliable_Latest packet");
-            Point->SendPacket(Pkt4);
+            if (Pkt4) {
+                Pkt4->write<const char*>("This is a Reliable_Latest packet");
+                Point->SendPacket(Pkt4);
+            }
+            else { printf("PKT4 UNAVAILABLE!\n"); }
             auto Pkt5 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Ordered>();
-            Pkt5->write<const char*>("This is a Reliable_Ordered packet");
-            Point->SendPacket(Pkt5);
+            if (Pkt5) {
+                Pkt5->write<const char*>("This is a Reliable_Ordered packet");
+                Point->SendPacket(Pkt5);
+            }
+            else { printf("PKT5 UNAVAILABLE!\n"); }
         }
         //std::system("PAUSE");
     }

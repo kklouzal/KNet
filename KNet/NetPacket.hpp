@@ -145,7 +145,10 @@ namespace KNet {
 		inline void Decompress(const ULONG Size)
 		{
 			//memcpy(&Packet->BinaryData[0], &RecvBuffer[Packet->Offset], Bytes);
-			LZ4_decompress_safe(&DataBuffer[Offset], &BinaryData[0], Size, MAX_PACKET_SIZE);
+			if (LZ4_decompress_safe(&DataBuffer[Offset], &BinaryData[0], Size, MAX_PACKET_SIZE) < 0)
+			{
+				//printf("DECOMPRESS ERROR\n");
+			}
 			m_read = sizeof(PacketID) + sizeof(ClientID);
 			bRecycle = false;
 		}

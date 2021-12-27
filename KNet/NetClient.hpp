@@ -114,8 +114,8 @@ namespace KNet
 				uintmax_t UniqueID;
 				Packet->read<ChannelID>(CHID);
 				Packet->read<uintmax_t>(UniqueID);
-				printf("\tRecv_Data_ACK PID: %i UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
 				if (CHID == ChannelID::Reliable_Any) {
+					printf("\tRecv_ANY_ACK PID: %i UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
 					NetPacket_Send* AcknowledgedPacket = Reliable_Any->TryACK(UniqueID);
 					//
 					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
@@ -124,6 +124,7 @@ namespace KNet
 					}
 				}
 				else if (CHID == ChannelID::Reliable_Latest) {
+					printf("\tRecv_LATEST_ACK PID: %i UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
 					NetPacket_Send* AcknowledgedPacket = Reliable_Latest->TryACK(UniqueID);
 					//
 					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
@@ -132,6 +133,7 @@ namespace KNet
 					}
 				}
 				else if (CHID == ChannelID::Reliable_Ordered) {
+					printf("\tRecv_ORDERED_ACK PID: %i UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
 					NetPacket_Send* AcknowledgedPacket = Reliable_Ordered->TryACK(UniqueID);
 					//
 					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool

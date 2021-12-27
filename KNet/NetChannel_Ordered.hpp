@@ -28,14 +28,14 @@ namespace KNet
 			OUT_Packets[UniqueID] = Packet;							//	Store this packet until it gets ACK'd
 		}
 
-		inline NetPacket_Send* TryACK(uintmax_t UniqueID)
+		inline NetPacket_Send* TryACK(uintmax_t& UniqueID)
 		{
 			//
 			//	If we have an outgoing packet waiting to be acknowledged
 			if (OUT_Packets.count(UniqueID))
 			{
 				NetPacket_Send* AcknowledgedPacket = OUT_Packets[UniqueID];
-				OUT_Packets[UniqueID] = nullptr;
+				OUT_Packets.erase(UniqueID);
 				AcknowledgedPacket->bDontRelease = false;
 				return AcknowledgedPacket;
 			}
@@ -70,16 +70,18 @@ namespace KNet
 					//	Loop through stored packets while it has the next expected UniqueIDs
 					while (IN_Packets.count(++IN_NextID))
 					{
+						printf("LOOP ORDERED\n");
 						//
 						//	Push the stored packet into our backlog and remove it from the container
 						PacketBacklog.push_back(IN_Packets[IN_NextID]);
-						IN_Packets[IN_NextID] = nullptr;
+						IN_Packets.erase(IN_NextID);
 					}
 					return PacketBacklog;
 				}
 				//
 				//	Store packets with a UniqueID greater than the one we need to process next
 				else {
+					printf("STORE ORDERED\n");
 					IN_Packets[UniqueID] = Packet;
 					return PacketBacklog;
 				}

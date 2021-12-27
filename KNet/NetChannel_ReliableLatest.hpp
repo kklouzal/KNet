@@ -26,14 +26,14 @@ namespace KNet
 			OUT_Packets[UniqueID] = Packet;							//	Store this packet until it gets ACK'd
 		}
 
-		inline NetPacket_Send* TryACK(uintmax_t UniqueID)
+		inline NetPacket_Send* TryACK(uintmax_t& UniqueID)
 		{
 			//
 			//	If we have an outgoing packet waiting to be acknowledged
 			if (OUT_Packets.count(UniqueID))
 			{
 				NetPacket_Send* AcknowledgedPacket = OUT_Packets[UniqueID];
-				OUT_Packets[UniqueID] = nullptr;
+				OUT_Packets.erase(UniqueID);
 				AcknowledgedPacket->bDontRelease = false;
 				return AcknowledgedPacket;
 			}
