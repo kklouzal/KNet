@@ -67,9 +67,9 @@ namespace KNet
 		//	Out of order packets received with an old UniqueID are dropped
 		Reliable_Latest,
 		//
-		//	Ordered:
+		//	Reliable_Ordered:
 		//	Guarentees all packets will be received and processed in the order they were sent
-		Ordered
+		Reliable_Ordered
 	};
 }
 
@@ -91,6 +91,7 @@ namespace KNet
 #include "NetChannel_UnreliableLatest.hpp"
 #include "NetChannel_ReliableAny.hpp"
 #include "NetChannel_ReliableLatest.hpp"
+#include "NetChannel_Ordered.hpp"
 //
 #include "NetClient.hpp"
 #include "NetServer.hpp"

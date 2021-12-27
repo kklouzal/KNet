@@ -89,6 +89,9 @@ int main()
             auto Pkt4 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Latest>();
             Pkt4->write<const char*>("This is a Reliable_Latest packet");
             Point->SendPacket(Pkt4);
+            auto Pkt5 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Ordered>();
+            Pkt5->write<const char*>("This is a Reliable_Ordered packet");
+            Point->SendPacket(Pkt5);
         }
         //std::system("PAUSE");
     }

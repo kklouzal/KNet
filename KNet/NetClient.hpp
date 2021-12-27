@@ -25,6 +25,7 @@ namespace KNet
 		Unreliable_Latest_Channel* Unreliable_Latest;
 		Reliable_Any_Channel* Reliable_Any;
 		Reliable_Latest_Channel* Reliable_Latest;
+		Reliable_Ordered_Channel* Reliable_Ordered;
 	public:
 
 		//	WARN: may be incorrect port_recv
@@ -35,7 +36,8 @@ namespace KNet
 			Unreliable_Any(new Unreliable_Any_Channel()),
 			Unreliable_Latest(new Unreliable_Latest_Channel()),
 			Reliable_Any(new Reliable_Any_Channel()),
-			Reliable_Latest(new Reliable_Latest_Channel())
+			Reliable_Latest(new Reliable_Latest_Channel()),
+			Reliable_Ordered(new Reliable_Ordered_Channel())
 		{
 			//	WARN: can run out of free objects
 			//	TODO: find another way to store the address in this object..
@@ -54,6 +56,7 @@ namespace KNet
 
 		~NetClient()
 		{
+			delete Reliable_Ordered;
 			delete Reliable_Latest;
 			delete Reliable_Any;
 			delete Unreliable_Latest;
@@ -85,8 +88,8 @@ namespace KNet
 					Reliable_Any->StampPacket(Packet);
 				} else if (CHID == ChannelID::Reliable_Latest) {
 					Reliable_Latest->StampPacket(Packet);
-				} else if (CHID == ChannelID::Ordered) {
-					Unreliable_Any->StampPacket(Packet);	//	todo: <--
+				} else if (CHID == ChannelID::Reliable_Ordered) {
+					Reliable_Ordered->StampPacket(Packet);
 				}
 			}
 			return Packet;
@@ -128,8 +131,13 @@ namespace KNet
 						ReturnPacket(AcknowledgedPacket);
 					}
 				}
-				else if (CHID == ChannelID::Ordered) {
-					//	TODO: <--
+				else if (CHID == ChannelID::Reliable_Ordered) {
+					NetPacket_Send* AcknowledgedPacket = Reliable_Ordered->TryACK(UniqueID);
+					//
+					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
+					if (AcknowledgedPacket) {
+						ReturnPacket(AcknowledgedPacket);
+					}
 				}
 			}
 		}
@@ -214,9 +222,14 @@ namespace KNet
 					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
 				}
 			}
-			else if (CHID == ChannelID::Ordered)
+			else if (CHID == ChannelID::Reliable_Ordered)
 			{
-
+				//
+				//	Loop through any packets returned and give them to this client
+				for (auto _Packet : Reliable_Ordered->TryReceive(Packet, UniqueID))
+				{
+					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &_Packet->Overlap), false);
+				}
 			}
 			//
 			//	Return the acknowledgement to be sent from the calling NetPoint
