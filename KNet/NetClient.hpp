@@ -44,8 +44,8 @@ namespace KNet
 			_ADDR_RECV = AddressPool->GetFreeObject();
 			_ADDR_RECV->Resolve(_IP_RECV, _PORT_RECV);
 			//
-			ACKPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS);
-			SendPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS);
+			ACKPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS, 0, this);
+			SendPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS, 1, this);
 			//
 			//	Create the IOCP handle
 			IOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
@@ -70,8 +70,6 @@ namespace KNet
 			NetPacket_Send* Packet = SendPacketPool->GetFreeObject();
 			if (Packet)
 			{
-				Packet->bChildPacket = true;
-				Packet->Child = this;
 				Packet->AddDestination(_ADDR_RECV);
 				Packet->SetPID(PacketID::Data);
 				Packet->SetCID(ClientID::Client);
@@ -120,6 +118,7 @@ namespace KNet
 					//
 					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
 					if (AcknowledgedPacket) {
+						//printf("Return ANY Packet From ACK InternalID %i InternalUniqueID %i\n", AcknowledgedPacket->InternalID, AcknowledgedPacket->InternalUniqueID);
 						ReturnPacket(AcknowledgedPacket);
 					}
 				}
@@ -129,6 +128,7 @@ namespace KNet
 					//
 					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
 					if (AcknowledgedPacket) {
+						//printf("Return LATEST Packet From ACK InternalID %i InternalUniqueID %i\n", AcknowledgedPacket->InternalID, AcknowledgedPacket->InternalUniqueID);
 						ReturnPacket(AcknowledgedPacket);
 					}
 				}
@@ -138,6 +138,7 @@ namespace KNet
 					//
 					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
 					if (AcknowledgedPacket) {
+						//printf("Return ORDERED Packet From ACK InternalID %i InternalUniqueID %i\n", AcknowledgedPacket->InternalID, AcknowledgedPacket->InternalUniqueID);
 						ReturnPacket(AcknowledgedPacket);
 					}
 				}
@@ -151,8 +152,6 @@ namespace KNet
 			//
 			//	Formulate an acknowledgement
 			NetPacket_Send* ACK = ACKPacketPool->GetFreeObject();
-			ACK->bChildPacket = true;	// packet will get returned to us
-			ACK->Child = this;
 			if (ACK)
 			{
 				ACK->AddDestination(_ADDR_RECV);
@@ -193,8 +192,6 @@ namespace KNet
 			//
 			//	Formulate an acknowledgement
 			NetPacket_Send* ACK = ACKPacketPool->GetFreeObject();
-			ACK->bChildPacket = true;	// packet will get returned to us
-			ACK->Child = this;
 			if (ACK)
 			{
 				ACK->AddDestination(_ADDR_RECV);

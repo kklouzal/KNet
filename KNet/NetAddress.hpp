@@ -11,6 +11,9 @@ namespace KNet
 
 	public:
 		addrinfo* Results = {};
+		void* Parent = nullptr;
+		unsigned int InternalID;
+		uintmax_t InternalUniqueID;
 
 		NetAddress(char* const Buffer)
 			: DataBuffer(Buffer), Address(), Port(0), RIO_BUF()

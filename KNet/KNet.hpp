@@ -25,10 +25,10 @@ namespace KNet
 	RIO_EXTENSION_FUNCTION_TABLE g_RIO;
 	const DWORD ADDR_SIZE = sizeof(SOCKADDR_INET);
 	const DWORD MAX_PACKET_SIZE = 1472;
-	const DWORD PENDING_SENDS = 2048;	//	Internal NetPoint send packets
-	const DWORD PENDING_RECVS = 2048;	//	Internal NetPoint recv packets
-	const DWORD GLOBAL_SENDS = 2048;	//	Global PeerNet send packets
-	const DWORD GLOBAL_ADDRS = 2048;	//	Global PeerNet addresses
+	const DWORD PENDING_SENDS = 12;	//	Internal NetPoint send packets
+	const DWORD PENDING_RECVS = 12;	//	Internal NetPoint recv packets
+	const DWORD GLOBAL_SENDS = 12;	//	Global PeerNet send packets
+	const DWORD GLOBAL_ADDRS = 12;	//	Global PeerNet addresses
 	//
 	//	Internal Packet IDs
 	enum class PacketID : uint8_t {
@@ -122,8 +122,8 @@ namespace KNet
 				sizeof(g_RIO),
 				&dwBytes, 0, 0), SOCKET_ERROR);
 			closesocket(RioSocket);
-			SendPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS);
-			AddressPool = new NetPool<NetAddress, ADDR_SIZE>(GLOBAL_ADDRS);
+			SendPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS, 99, nullptr);
+			AddressPool = new NetPool<NetAddress, ADDR_SIZE>(GLOBAL_ADDRS, 99, nullptr);
 			printf("Initialization Complete\n");
 		}
 	}

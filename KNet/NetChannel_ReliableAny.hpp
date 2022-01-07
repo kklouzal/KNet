@@ -23,6 +23,8 @@ namespace KNet
 			//	TODO: Store the OUT_Packet during Point->SendPacket()..
 			Packet->bDontRelease = true;							//	Needs to wait for an ACK
 			OUT_Packets[UniqueID] = Packet;							//	Store this packet until it gets ACK'd
+
+			Packet->InternalLastUse = (uint8_t)ChannelID::Reliable_Any;
 		}
 
 		inline NetPacket_Send* TryACK(uintmax_t& UniqueID)

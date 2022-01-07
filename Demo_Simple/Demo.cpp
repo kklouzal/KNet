@@ -21,7 +21,7 @@ int main()
     //  Hold onto any connected clients
     std::deque<KNet::NetClient*> ConnectedClients;
 
-    for (auto i = 0; i < 256; i++) // 20 iterations ensures packets are being recycled
+    for (auto i = 0; i < 512; i++) // 20 iterations ensures packets are being recycled
     {
         //
         //  Send a test packet(s)

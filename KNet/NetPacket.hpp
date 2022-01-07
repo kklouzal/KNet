@@ -16,9 +16,12 @@ namespace KNet {
 
 	public:
 		PRIO_BUF Address = nullptr;
-		bool bChildPacket;
-		void* Child = nullptr;
+		void* Parent = nullptr;
 		bool bDontRelease;
+
+		unsigned int InternalID;
+		uintmax_t InternalUniqueID;
+		uint8_t InternalLastUse;
 
 
 		NetPacket_Send(char* const Buffer) :
@@ -34,7 +37,6 @@ namespace KNet {
 			//	Offset the m_write position by the size of our header
 			m_write(sizeof(PacketID)+sizeof(ClientID)),
 			//
-			bChildPacket(false),
 			bDontRelease(false)
 		{
 			Overlap.Pointer = this;
@@ -115,6 +117,10 @@ namespace KNet {
 
 	public:
 		PRIO_BUF Address = nullptr;
+		void* Parent = nullptr;
+
+		unsigned int InternalID;
+		uintmax_t InternalUniqueID;
 
 		NetPacket_Recv(char* const Buffer) :
 			RIO_BUF(),

@@ -57,7 +57,7 @@ namespace KNet
 		//	RecvAddr - Receives packets in on this address
 		NetPoint(NetAddress* SendAddr, NetAddress* RecvAddr) :
 			bRunning(true), SendAddress(SendAddr), RecvAddress(RecvAddr),
-			RecvPackets(new NetPool<NetPacket_Recv, ADDR_SIZE + MAX_PACKET_SIZE>(PENDING_RECVS)),
+			RecvPackets(new NetPool<NetPacket_Recv, ADDR_SIZE + MAX_PACKET_SIZE>(PENDING_RECVS, 50, this)),
 			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0)
 		{
 			//
@@ -265,18 +265,18 @@ namespace KNet
 		//	Threadded Send Function
 		void Thread_Send() {
 			printf("Send Thread Started\n");
-			DWORD numberOfBytes = 0;
-			ULONG_PTR completionKey;
-			OVERLAPPED* pOverlapped = 0;
-			RIORESULT Result;
-			ULONG numResults;
 			while (bRunning.load()) {
+				DWORD numberOfBytes = 0;
+				ULONG_PTR completionKey;
+				OVERLAPPED* pOverlapped = 0;
 				//
 				//	Wait until we have a send event
 				KN_CHECK_RESULT(GetQueuedCompletionStatus(SendIOCP, &numberOfBytes, &completionKey, &pOverlapped, INFINITE), false);
 				//
 				//	Send Completed Operation
 				if (completionKey == (ULONG_PTR)SendCompletion::SendComplete) {
+					RIORESULT Result;
+					ULONG numResults;
 					//
 					//	Dequeue A Send
 					numResults = g_RIO.RIODequeueCompletion(SendQueue, &Result, 1);
@@ -284,20 +284,21 @@ namespace KNet
 					//	WARN: should probably handle this..
 					//	TODO: abort packet processing when corrupt
 					if (KN_CHECK_RESULT2(RIO_CORRUPT_CQ, numResults))
-					{ }
+					{
+						printf("Corrupt Results!\n");
+					}
 					if (numResults > 0) {
 						//
 						//	Cleanup the sent packet
 						NetPacket_Send* Packet = reinterpret_cast<NetPacket_Send*>(Result.RequestContext);
-						if (Packet->bChildPacket)
+						if (Packet->Parent)
 						{
 							//
 							//	Don't release the packet if it needs to wait for an ACK
 							if (!Packet->bDontRelease) {
 								//	WARN: This is a race condition, Send_Thread communicating with Recv_Thread directly..
 								//	TODO: Use IOCP to return packets..
-								
-								((NetClient*)Packet->Child)->ReturnPacket(Packet);
+								((NetClient*)Packet->Parent)->ReturnPacket(Packet);
 							}
 						}
 						else {
@@ -336,18 +337,18 @@ namespace KNet
 		//	Threadded Receive Function
 		void Thread_Recv() {
 			printf("Recv Thread Started\n");
-			DWORD numberOfBytes = 0;
-			ULONG_PTR completionKey = 0;
-			OVERLAPPED* pOverlapped = 0;
-			RIORESULT Result;
-			ULONG numResults;
 			while (bRunning.load()) {
+				DWORD numberOfBytes = 0;
+				ULONG_PTR completionKey = 0;
+				OVERLAPPED* pOverlapped = 0;
 				//
 				//	Wait until we have a receive event
 				KN_CHECK_RESULT(GetQueuedCompletionStatus(RecvIOCP, &numberOfBytes, &completionKey, &pOverlapped, INFINITE), false);
 				//
 				//	Received New Packet Operation
 				if (completionKey == (ULONG_PTR)RecvCompletion::RecvComplete) {
+					RIORESULT Result;
+					ULONG numResults;
 					//
 					//	Dequeue A Receive
 					numResults = g_RIO.RIODequeueCompletion(RecvQueue, &Result, 1);
