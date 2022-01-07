@@ -54,9 +54,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="lz4.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="KNet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
