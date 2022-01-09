@@ -107,11 +107,11 @@ namespace KNet
 			}
 			//
 			//	Create Send/Recv Request Queue
-			SendRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketSend, 0, 1, PENDING_SENDS + GLOBAL_SENDS, 1, SendQueue, SendQueue, nullptr);
+			SendRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketSend, 0, 1, PENDING_SENDS + GLOBAL_SENDS, 1, SendQueue, SendQueue, NULL);
 			if (SendRequestQueue == RIO_INVALID_RQ) {
 				printf("RIO Create Request Queue Failed - Send Error: (%i)\n", GetLastError());
 			}
-			RecvRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketRecv, PENDING_RECVS, 1, 0, 1, RecvQueue, RecvQueue, nullptr);
+			RecvRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketRecv, PENDING_RECVS, 1, 0, 1, RecvQueue, RecvQueue, NULL);
 			if (RecvRequestQueue == RIO_INVALID_RQ) {
 				printf("RIO Create Request Queue Failed - Recv Error: (%i)\n", GetLastError());
 			}
@@ -131,7 +131,7 @@ namespace KNet
 				Packet->Address->Length = ADDR_SIZE;
 				Packet->Length = Packet->Length - ADDR_SIZE;
 				//
-				if (!g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, static_cast<void*>(Packet))) {
+				if (!g_RIO.RIOReceiveEx(RecvRequestQueue, dynamic_cast<PRIO_BUF>(Packet), 1, NULL, Packet->Address, NULL, 0, 0, static_cast<void*>(Packet))) {
 					printf("RIO Receive Failed - Code: (%i)\n", GetLastError());
 				}
 			}
@@ -265,18 +265,18 @@ namespace KNet
 		//	Threadded Send Function
 		void Thread_Send() {
 			printf("Send Thread Started\n");
+			DWORD numberOfBytes = 0;
+			ULONG_PTR completionKey;
+			OVERLAPPED* pOverlapped = 0;
+			RIORESULT Result;
+			ULONG numResults;
 			while (bRunning.load()) {
-				DWORD numberOfBytes = 0;
-				ULONG_PTR completionKey;
-				OVERLAPPED* pOverlapped = 0;
 				//
 				//	Wait until we have a send event
 				KN_CHECK_RESULT(GetQueuedCompletionStatus(SendIOCP, &numberOfBytes, &completionKey, &pOverlapped, INFINITE), false);
 				//
 				//	Send Completed Operation
 				if (completionKey == (ULONG_PTR)SendCompletion::SendComplete) {
-					RIORESULT Result;
-					ULONG numResults;
 					//
 					//	Dequeue A Send
 					numResults = g_RIO.RIODequeueCompletion(SendQueue, &Result, 1);
@@ -324,7 +324,7 @@ namespace KNet
 					Packet->Compress();
 					//
 					//	Send the data to its destination
-					g_RIO.RIOSendEx(SendRequestQueue, Packet, 1, NULL, Packet->Address, 0, 0, 0, static_cast<void*>(Packet));
+					g_RIO.RIOSendEx(SendRequestQueue, dynamic_cast<PRIO_BUF>(Packet), 1, NULL, Packet->Address, 0, 0, 0, pOverlapped->Pointer);
 				}
 				//
 				//	Shutdown Thread Operation
@@ -337,18 +337,18 @@ namespace KNet
 		//	Threadded Receive Function
 		void Thread_Recv() {
 			printf("Recv Thread Started\n");
+			DWORD numberOfBytes = 0;
+			ULONG_PTR completionKey = 0;
+			OVERLAPPED* pOverlapped = 0;
+			RIORESULT Result;
+			ULONG numResults;
 			while (bRunning.load()) {
-				DWORD numberOfBytes = 0;
-				ULONG_PTR completionKey = 0;
-				OVERLAPPED* pOverlapped = 0;
 				//
 				//	Wait until we have a receive event
 				KN_CHECK_RESULT(GetQueuedCompletionStatus(RecvIOCP, &numberOfBytes, &completionKey, &pOverlapped, INFINITE), false);
 				//
 				//	Received New Packet Operation
 				if (completionKey == (ULONG_PTR)RecvCompletion::RecvComplete) {
-					RIORESULT Result;
-					ULONG numResults;
 					//
 					//	Dequeue A Receive
 					numResults = g_RIO.RIODequeueCompletion(RecvQueue, &Result, 1);
@@ -423,7 +423,7 @@ namespace KNet
 						//
 						//	Immediately recycle the packet by using it to queue up a new receive operation
 						if (Packet->bRecycle) {
-							KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, static_cast<void*>(Packet)), false);
+							KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, dynamic_cast<PRIO_BUF>(Packet), 1, NULL, Packet->Address, NULL, 0, 0, static_cast<void*>(Packet)), false);
 						}
 					}
 					else { printf("Dequeued 0 Recv Completions\n"); }
@@ -440,7 +440,7 @@ namespace KNet
 					NetPacket_Recv* Packet = static_cast<NetPacket_Recv*>(pOverlapped->Pointer);
 					//
 					//	Queue up a new receive
-					KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, static_cast<void*>(Packet)), false);
+					KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, dynamic_cast<PRIO_BUF>(Packet), 1, NULL, Packet->Address, NULL, 0, 0, pOverlapped->Pointer), false);
 				}
 				//
 				//	Shutdown Thread Operation

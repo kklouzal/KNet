@@ -25,9 +25,9 @@ namespace KNet
 	RIO_EXTENSION_FUNCTION_TABLE g_RIO;
 	const DWORD ADDR_SIZE = sizeof(SOCKADDR_INET);
 	const DWORD MAX_PACKET_SIZE = 1472;
-	const DWORD PENDING_SENDS = 128;	//	Internal NetPoint send packets
-	const DWORD PENDING_RECVS = 1024;	//	Internal NetPoint recv packets
-	const DWORD GLOBAL_SENDS = 128;	//	Global PeerNet send packets
+	const DWORD PENDING_SENDS = 10240;	//	Internal NetPoint send packets
+	const DWORD PENDING_RECVS = 10240;	//	Internal NetPoint recv packets
+	const DWORD GLOBAL_SENDS = 64;	//	Global PeerNet send packets
 	const DWORD GLOBAL_ADDRS = 1024;	//	Global PeerNet addresses
 	//
 	//	Internal Packet IDs

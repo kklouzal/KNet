@@ -23,7 +23,6 @@ namespace KNet {
 		uintmax_t InternalUniqueID;
 		uint8_t InternalLastUse;
 
-
 		NetPacket_Send(char* const Buffer) :
 			RIO_BUF(),
 			Overlap(OVERLAPPED()),
@@ -48,10 +47,10 @@ namespace KNet {
 
 		inline void Compress()
 		{
-			//memcpy(&SendBuffer[Packet->Offset], Packet->BinaryData, Packet->size());
-			if (!LZ4_compress_default(&BinaryData[0], &DataBuffer[Offset], (int)m_write, MAX_PACKET_SIZE)) {
-				printf("Packet Compression Failed\n");
-			}
+			memcpy(&DataBuffer[Offset], BinaryData, m_write);
+			//if (!LZ4_compress_default(&BinaryData[0], &DataBuffer[Offset], (int)m_write, MAX_PACKET_SIZE)) {
+			//	printf("Packet Compression Failed\n");
+			//}
 			m_write = sizeof(PacketID) + sizeof(ClientID);
 		}
 
@@ -150,11 +149,11 @@ namespace KNet {
 		//	Also reset the packet to it's initial state
 		inline void Decompress(const ULONG Size)
 		{
-			//memcpy(&Packet->BinaryData[0], &RecvBuffer[Packet->Offset], Bytes);
-			if (LZ4_decompress_safe(&DataBuffer[Offset], &BinaryData[0], Size, MAX_PACKET_SIZE) < 0)
-			{
+			memcpy(&BinaryData[0], &DataBuffer[Offset], Size);
+			//if (LZ4_decompress_safe(&DataBuffer[Offset], &BinaryData[0], Size, MAX_PACKET_SIZE) < 0)
+			//{
 				//printf("DECOMPRESS ERROR\n");
-			}
+			//}
 			m_read = sizeof(PacketID) + sizeof(ClientID);
 			bRecycle = false;
 		}
