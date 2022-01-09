@@ -34,14 +34,14 @@ namespace KNet {
 			//
 			bDontRelease(false)
 		{
-			Overlap.Pointer = static_cast<void*>(this);
+			Overlap.Pointer = this;
 		}
 
 		~NetPacket_Send() {
 			delete[] BinaryData;
 		}
 
-		inline void Compress()
+		inline void Compress() noexcept
 		{
 			memcpy(&DataBuffer[Offset], BinaryData, m_write);
 			//if (!LZ4_compress_default(&BinaryData[0], &DataBuffer[Offset], (int)m_write, MAX_PACKET_SIZE)) {
@@ -52,26 +52,26 @@ namespace KNet {
 
 		//	TODO: Handle multiple destinations using vector of addresses:
 		//		  Add Address into vector of destination addresses.
-		void AddDestination(PRIO_BUF Addr) {
+		void AddDestination(PRIO_BUF Addr) noexcept {
 			Address = Addr;
 		}
 
-		void SetPID(PacketID ID)
+		void SetPID(PacketID ID) noexcept
 		{
 			std::memcpy(PID, &ID, sizeof(PacketID));
 		}
 
-		PacketID GetPID()
+		PacketID GetPID() noexcept
 		{
 			return *PID;
 		}
 
-		void SetCID(ClientID ID)
+		void SetCID(ClientID ID) noexcept
 		{
 			std::memcpy(CID, &ID, sizeof(ClientID));
 		}
 
-		ClientID GetCID()
+		ClientID GetCID() noexcept
 		{
 			return *CID;
 		}
@@ -79,11 +79,11 @@ namespace KNet {
 		//
 		//	Writes the next value in our packet
 		//	Writes MUST be read in the same order they were written!
-		template <typename T> const bool write(T value) {
+		template <typename T> const bool write(T value) noexcept {
 			//static_assert(std::is_trivial_v<T>);
 			//
 			//	Get the size of this write
-			const std::size_t bytes = sizeof(T);
+			constexpr std::size_t bytes = sizeof(T);
 			//
 			//	Ensure we don't write past the end of our data buffer
 			if (m_write + bytes >= MAX_PACKET_SIZE) { return false; }
@@ -129,7 +129,7 @@ namespace KNet {
 			m_read(sizeof(PacketID) + sizeof(ClientID)),
 			bRecycle(false)
 			{
-				Overlap.Pointer = static_cast<void*>(this);
+				Overlap.Pointer = this;
 			}
 
 		~NetPacket_Recv() {
@@ -140,7 +140,7 @@ namespace KNet {
 		//
 		//	Decompress our raw incoming data
 		//	Also reset the packet to it's initial state
-		inline void Decompress(const ULONG Size)
+		inline void Decompress(const ULONG Size) noexcept
 		{
 			memcpy(&BinaryData[0], &DataBuffer[Offset], Size);
 			//if (LZ4_decompress_safe(&DataBuffer[Offset], &BinaryData[0], Size, MAX_PACKET_SIZE) < 0)
@@ -151,17 +151,17 @@ namespace KNet {
 			bRecycle = false;
 		}
 
-		SOCKADDR_INET* GetAddress()
+		SOCKADDR_INET* GetAddress() noexcept
 		{
 			return reinterpret_cast<SOCKADDR_INET*>(&DataBuffer[Address->Offset]);
 		}
 
-		PacketID GetPID()
+		PacketID GetPID() noexcept
 		{
 			return *PID;
 		}
 
-		ClientID GetCID()
+		ClientID GetCID() noexcept
 		{
 			return *CID;
 		}
@@ -169,11 +169,11 @@ namespace KNet {
 		//
 		//	Reads and returns the next value in our packet.
 		//	Reads MUST occur in the same order they were written!
-		template <typename T> const bool read(T& Var) {
+		template <typename T> const bool read(T& Var) noexcept {
 			//static_assert(std::is_trivial_v<T>);
 			//
 			//	Get the size of this read
-			const std::size_t bytes = sizeof(T);
+			constexpr std::size_t bytes = sizeof(T);
 			//
 			//	Ensure we don't read past the end of our data buffer
 			if (m_read + bytes >= MAX_PACKET_SIZE) { return false; }

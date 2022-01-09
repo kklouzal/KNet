@@ -11,12 +11,12 @@ namespace KNet
 		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets;	//	Unacknowledged outgoing packets
 
 	public:
-		inline Reliable_Latest_Channel() {}
+		inline Reliable_Latest_Channel() noexcept {}
 
 		//	Initialize and return a new packet for sending
 		inline void StampPacket(NetPacket_Send* Packet)
 		{
-			uintmax_t UniqueID = OUT_NextID++;						//	Store and increment our UniqueID
+			const uintmax_t UniqueID = OUT_NextID++;						//	Store and increment our UniqueID
 			Packet->write<ChannelID>(ChannelID::Reliable_Latest);	//	Write the ChannelID
 			Packet->write<uintmax_t>(UniqueID);						//	Write the UniqueID
 			//
@@ -26,7 +26,7 @@ namespace KNet
 			OUT_Packets[UniqueID] = Packet;							//	Store this packet until it gets ACK'd
 		}
 
-		inline NetPacket_Send* TryACK(uintmax_t& UniqueID)
+		inline NetPacket_Send* TryACK(const uintmax_t& UniqueID)
 		{
 			//
 			//	If we have an outgoing packet waiting to be acknowledged
@@ -43,7 +43,7 @@ namespace KNet
 		}
 
 		//	Receives a packet
-		inline const bool TryReceive(NetPacket_Recv* const Packet, uintmax_t& UniqueID)
+		inline const bool TryReceive(NetPacket_Recv* const Packet, const uintmax_t& UniqueID) noexcept
 		{
 			if (UniqueID <= IN_LastID)
 			{

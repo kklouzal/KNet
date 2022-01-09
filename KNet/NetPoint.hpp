@@ -64,28 +64,28 @@ namespace KNet
 			//	Create this NetPoints IOCP handle
 			PointIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
 			if (PointIOCP == NULL) {
-				printf("Create IO Completion Port - Point Error: (%i)\n", GetLastError());
+				printf("Create IO Completion Port - Point Error: (%lu)\n", GetLastError());
 			}
 			//
 			//	Create Send/Recv Sockets
-			const DWORD flags = WSA_FLAG_REGISTERED_IO;
+			constexpr DWORD flags = WSA_FLAG_REGISTERED_IO;
 			_SocketSend = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, 0, flags);
 			if (_SocketSend == INVALID_SOCKET) {
-				printf("WSA Socket Failed - Code: (%i)\n", GetLastError());
+				printf("WSA Socket Failed - Code: (%lu)\n", GetLastError());
 			}
 			_SocketRecv = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, 0, flags);
 			if (_SocketRecv == INVALID_SOCKET) {
-				printf("WSA Socket Failed - Code: (%i)\n", GetLastError());
+				printf("WSA Socket Failed - Code: (%lu)\n", GetLastError());
 			}
 			//
 			//	Create Send/Recv Completion Queue
 			SendIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
 			if (SendIOCP == NULL) {
-				printf("Create IO Completion Port - Send Error: (%i)\n", GetLastError());
+				printf("Create IO Completion Port - Send Error: (%lu)\n", GetLastError());
 			}
 			RecvIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
 			if (RecvIOCP == NULL) {
-				printf("Create IO Completion Port - Recv Error: (%i)\n", GetLastError());
+				printf("Create IO Completion Port - Recv Error: (%lu)\n", GetLastError());
 			}
 			RIO_NOTIFICATION_COMPLETION SendCompletion = {};
 			SendCompletion.Type = RIO_IOCP_COMPLETION;
@@ -99,21 +99,21 @@ namespace KNet
 			RecvCompletion.Iocp.Overlapped = &RecvIOCPOverlap;
 			SendQueue = g_RIO.RIOCreateCompletionQueue(PENDING_SENDS + GLOBAL_SENDS, &SendCompletion);
 			if (SendQueue == RIO_INVALID_CQ) {
-				printf("RIO Create Completion Queue Failed - Send Error: (%i)\n", GetLastError());
+				printf("RIO Create Completion Queue Failed - Send Error: (%lu)\n", GetLastError());
 			}
 			RecvQueue = g_RIO.RIOCreateCompletionQueue(PENDING_RECVS, &RecvCompletion);
 			if (RecvQueue == RIO_INVALID_CQ) {
-				printf("RIO Create Completion Queue Failed - Recv Error: (%i)\n", GetLastError());
+				printf("RIO Create Completion Queue Failed - Recv Error: (%lu)\n", GetLastError());
 			}
 			//
 			//	Create Send/Recv Request Queue
 			SendRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketSend, 0, 1, PENDING_SENDS + GLOBAL_SENDS, 1, SendQueue, SendQueue, NULL);
 			if (SendRequestQueue == RIO_INVALID_RQ) {
-				printf("RIO Create Request Queue Failed - Send Error: (%i)\n", GetLastError());
+				printf("RIO Create Request Queue Failed - Send Error: (%lu)\n", GetLastError());
 			}
 			RecvRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketRecv, PENDING_RECVS, 1, 0, 1, RecvQueue, RecvQueue, NULL);
 			if (RecvRequestQueue == RIO_INVALID_RQ) {
-				printf("RIO Create Request Queue Failed - Recv Error: (%i)\n", GetLastError());
+				printf("RIO Create Request Queue Failed - Recv Error: (%lu)\n", GetLastError());
 			}
 			//
 			//	Post our receives
@@ -121,27 +121,27 @@ namespace KNet
 			for (auto Packet : RecvPackets->GetAllObjects()) {
 				//
 				//	BufferID
-				Packet->Address->BufferId = ((PRIO_BUF)Packet)->BufferId;
+				Packet->Address->BufferId = Packet->BufferId;
 				//
 				//	Offsets
-				Packet->Address->Offset = ((PRIO_BUF)Packet)->Offset;
-				((PRIO_BUF)Packet)->Offset += ADDR_SIZE;
+				Packet->Address->Offset = Packet->Offset;
+				Packet->Offset += ADDR_SIZE;
 				//
 				//	Lengths
 				Packet->Address->Length = ADDR_SIZE;
-				((PRIO_BUF)Packet)->Length -= ADDR_SIZE;
+				Packet->Length -= ADDR_SIZE;
 				//
-				if (!g_RIO.RIOReceiveEx(RecvRequestQueue, dynamic_cast<PRIO_BUF>(Packet), 1, NULL, Packet->Address, NULL, 0, 0, static_cast<void*>(Packet))) {
-					printf("RIO Receive Failed - Code: (%i)\n", GetLastError());
+				if (!g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, Packet)) {
+					printf("RIO Receive Failed - Code: (%lu)\n", GetLastError());
 				}
 			}
 			//
 			//	Bind Send/Recv Socket
-			if (SOCKET_ERROR == bind(_SocketSend, SendAddr->Results->ai_addr, (int)SendAddr->Results->ai_addrlen)) {
-				printf("Bind Failed - Code: (%i)\n", GetLastError());
+			if (SOCKET_ERROR == bind(_SocketSend, SendAddr->Results->ai_addr, static_cast<int>(SendAddr->Results->ai_addrlen))) {
+				printf("Bind Failed - Code: (%lu)\n", GetLastError());
 			}
-			if (SOCKET_ERROR == bind(_SocketRecv, RecvAddr->Results->ai_addr, (int)RecvAddr->Results->ai_addrlen)) {
-				printf("Bind Failed - Code: (%i)\n", GetLastError());
+			if (SOCKET_ERROR == bind(_SocketRecv, RecvAddr->Results->ai_addr, static_cast<int>(RecvAddr->Results->ai_addrlen))) {
+				printf("Bind Failed - Code: (%lu)\n", GetLastError());
 			}
 			//
 			//	Notify RIO that our send thread is ready for processing
@@ -167,12 +167,12 @@ namespace KNet
 			//
 			//	Shutdown Send/Recv threads
 			bRunning = false;
-			if (!PostQueuedCompletionStatus(SendIOCP, NULL, (ULONG_PTR)SendCompletion::SendShutdown, &SendIOCPOverlap)) {
-				printf("Post Queued Completion Status - Send Error: %i\n", GetLastError());
+			if (!PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(SendCompletion::SendShutdown), &SendIOCPOverlap)) {
+				printf("Post Queued Completion Status - Send Error: %lu\n", GetLastError());
 			}
 			SendThread->join();
-			if (!PostQueuedCompletionStatus(RecvIOCP, NULL, (ULONG_PTR)RecvCompletion::RecvShutdown, &RecvIOCPOverlap)) {
-				printf("Post Queued Completion Status - Recv Error: %i\n", GetLastError());
+			if (!PostQueuedCompletionStatus(RecvIOCP, NULL, static_cast<ULONG_PTR>(RecvCompletion::RecvShutdown), &RecvIOCPOverlap)) {
+				printf("Post Queued Completion Status - Recv Error: %lu\n", GetLastError());
 			}
 			RecvThread->join();
 			//
@@ -188,10 +188,10 @@ namespace KNet
 			//
 			//	Close our sockets
 			if (SOCKET_ERROR == closesocket(_SocketSend)) {
-				printf("Close Socket Failed - Error: (%i)\n", GetLastError());
+				printf("Close Socket Failed - Error: (%lu)\n", GetLastError());
 			}
 			if (SOCKET_ERROR == closesocket(_SocketRecv)) {
-				printf("Close Socket Failed - Error: (%i)\n", GetLastError());
+				printf("Close Socket Failed - Error: (%lu)\n", GetLastError());
 			}
 			//
 			//	Cleanup RIO
@@ -209,7 +209,7 @@ namespace KNet
 			printf("NetPoint Destroyed\n");
 		}
 
-		void SendPacket(NetPacket_Send* Packet) {
+		void SendPacket(NetPacket_Send* Packet) noexcept {
 			if (Packet)
 			{
 				//	Send the packet
@@ -217,7 +217,7 @@ namespace KNet
 			}
 		}
 
-		void ReleasePacket(NetPacket_Recv* Packet) {
+		void ReleasePacket(NetPacket_Recv* Packet) noexcept {
 			//	Release the packet
 			KN_CHECK_RESULT(PostQueuedCompletionStatus(RecvIOCP, NULL, (ULONG_PTR)NetPoint::RecvCompletion::RecvRelease, &Packet->Overlap), false);
 		}
@@ -243,18 +243,18 @@ namespace KNet
 				}
 				//
 				//	Unread Packet Operation
-				else if(pEntries[i].lpCompletionKey == (ULONG_PTR)PointCompletion::RecvUnread) {
+				else if(pEntries[i].lpCompletionKey == static_cast<ULONG_PTR>(PointCompletion::RecvUnread)) {
 					_Updates.first.push_back(static_cast<NetPacket_Recv*>(pEntries[i].lpOverlapped->Pointer));
 				}
 				//
 				//	Client Update Operation
-				else if (pEntries[i].lpCompletionKey == (ULONG_PTR)PointCompletion::ClientUpdate) {
-					_Updates.second.push_back(reinterpret_cast<NetClient*>(pEntries[i].lpOverlapped));
+				else if (pEntries[i].lpCompletionKey == static_cast<ULONG_PTR>(PointCompletion::ClientUpdate)) {
+					_Updates.second.push_back(static_cast<NetClient*>(pEntries[i].lpOverlapped));
 					printf("ClientUpdate\n");
 				}
 				//
 				//	Server Update Operation
-				else if (pEntries[i].lpCompletionKey == (ULONG_PTR)PointCompletion::ServerUpdate) {
+				else if (pEntries[i].lpCompletionKey == static_cast<ULONG_PTR>(PointCompletion::ServerUpdate)) {
 					//_Updates.??third??.push_back(static_cast<NetServer*>(pEntries[i].lpOverlapped->Pointer));
 				}
 			}
@@ -263,7 +263,7 @@ namespace KNet
 
 		//
 		//	Threadded Send Function
-		void Thread_Send() {
+		void Thread_Send() noexcept {
 			printf("Send Thread Started\n");
 			DWORD numberOfBytes = 0;
 			ULONG_PTR completionKey;
@@ -317,14 +317,14 @@ namespace KNet
 				}
 				//
 				//	Initiate Send Operation
-				else if (completionKey == (ULONG_PTR)SendCompletion::SendInitiate) {
+				else if (completionKey == static_cast<ULONG_PTR>(SendCompletion::SendInitiate)) {
 					NetPacket_Send* Packet = static_cast<NetPacket_Send*>(pOverlapped->Pointer);
 					//
 					//	Compress our packets raw binary data straight into the SendBuffer
 					Packet->Compress();
 					//
 					//	Send the data to its destination
-					g_RIO.RIOSendEx(SendRequestQueue, dynamic_cast<PRIO_BUF>(Packet), 1, NULL, Packet->Address, 0, 0, 0, pOverlapped->Pointer);
+					g_RIO.RIOSendEx(SendRequestQueue, Packet, 1, NULL, Packet->Address, 0, 0, 0, pOverlapped->Pointer);
 				}
 				//
 				//	Shutdown Thread Operation
@@ -366,13 +366,13 @@ namespace KNet
 						Packet->Decompress(Result.BytesTransferred);
 						//
 						//	Try to read Packet Header
-						PacketID OpID = Packet->GetPID();
-						ClientID ClID = Packet->GetCID();
+						const PacketID OpID = Packet->GetPID();
+						const ClientID ClID = Packet->GetCID();
 						//
 						//	Grab the source address information
-						SOCKADDR_INET* Source = Packet->GetAddress();
+						const SOCKADDR_INET* Source = Packet->GetAddress();
 						std::string IP(inet_ntoa(Source->Ipv4.sin_addr));
-						u_short PORT = ntohs(Source->Ipv4.sin_port);
+						const u_short PORT = ntohs(Source->Ipv4.sin_port);
 						std::string ID(IP + ":" + std::to_string(PORT));
 						//
 						//	Client logic
@@ -406,7 +406,7 @@ namespace KNet
 						{
 							if (Servers.count(ID))
 							{
-								NetServer* _Server = Servers[ID];
+								const NetServer* _Server = Servers[ID];
 							}
 							else {
 								Servers[ID] = new NetServer(IP, PORT);
@@ -423,7 +423,7 @@ namespace KNet
 						//
 						//	Immediately recycle the packet by using it to queue up a new receive operation
 						if (Packet->bRecycle) {
-							KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, dynamic_cast<PRIO_BUF>(Packet), 1, NULL, Packet->Address, NULL, 0, 0, static_cast<void*>(Packet)), false);
+							KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, Packet), false);
 						}
 					}
 					else { printf("Dequeued 0 Recv Completions\n"); }
@@ -436,11 +436,11 @@ namespace KNet
 				}
 				//
 				//	Release Recv Packet Operation
-				else if (completionKey == (ULONG_PTR)RecvCompletion::RecvRelease) {
+				else if (completionKey == static_cast<ULONG_PTR>(RecvCompletion::RecvRelease)) {
 					NetPacket_Recv* Packet = static_cast<NetPacket_Recv*>(pOverlapped->Pointer);
 					//
 					//	Queue up a new receive
-					KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, dynamic_cast<PRIO_BUF>(Packet), 1, NULL, Packet->Address, NULL, 0, 0, pOverlapped->Pointer), false);
+					KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, pOverlapped->Pointer), false);
 				}
 				//
 				//	Shutdown Thread Operation

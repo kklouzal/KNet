@@ -13,7 +13,7 @@ namespace KNet
 		addrinfo* Results = {};
 		void* Parent = nullptr;
 
-		NetAddress(char* const Buffer)
+		NetAddress(char* const Buffer) noexcept
 			: DataBuffer(Buffer), Address(), Port(0), RIO_BUF()
 		{}
 

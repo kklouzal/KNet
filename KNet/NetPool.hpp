@@ -19,9 +19,9 @@ namespace KNet
 			//	Create our pool of objects
 			for (uint32_t i = 0; i < PoolSize; i++) {
 				T* Object = new T(_Data);
-				((PRIO_BUF)Object)->BufferId = _BufferID;
-				((PRIO_BUF)Object)->Length = MaxSize;
-				((PRIO_BUF)Object)->Offset = MaxSize * i;
+				Object->BufferId = _BufferID;
+				Object->Length = MaxSize;
+				Object->Offset = MaxSize * i;
 				Object->Parent = ParentObject;
 				_Pool.push_back(Object);
 				_Free.push_back(Object);
@@ -30,7 +30,7 @@ namespace KNet
 
 		~NetPool()
 		{
-			printf("Cleaning Up %i NetPool Objects\n", (int)_Pool.size());
+			printf("Cleaning Up %zu NetPool Objects\n", _Pool.size());
 			for (auto Object : _Pool) {
 				delete Object;
 			}
@@ -41,7 +41,7 @@ namespace KNet
 
 		//
 		//	Returns a reference to the entire pool of objects
-		std::deque<T*>& GetAllObjects()
+		std::deque<T*>& GetAllObjects() noexcept
 		{
 			return _Pool;
 		}
@@ -49,7 +49,7 @@ namespace KNet
 		//
 		//	Returns a pointer to a single unused object
 		//	Otherwise returns nullptr if no free objects available
-		T* GetFreeObject()
+		T* GetFreeObject() noexcept
 		{
 			if (!_Free.empty())
 			{

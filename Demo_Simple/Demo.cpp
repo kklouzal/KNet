@@ -8,6 +8,7 @@ int main()
 
     //
     //  Resolve our send and receive addresses
+    
     auto SendAddr = KNet::AddressPool->GetFreeObject();
     auto RecvAddr = KNet::AddressPool->GetFreeObject();
     SendAddr->Resolve("192.168.1.193", 9000);

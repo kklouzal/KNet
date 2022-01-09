@@ -10,10 +10,10 @@ namespace KNet
 		std::atomic<uintmax_t> OUT_NextID = 1;	//	Outgoing UniqueID
 
 	public:
-		inline Unreliable_Latest_Channel() {}
+		inline Unreliable_Latest_Channel() noexcept {}
 
 		//	Initialize and return a new packet for sending
-		inline void StampPacket(NetPacket_Send* Packet)
+		inline void StampPacket(NetPacket_Send* Packet) noexcept
 		{
 			Packet->bDontRelease = false;	//	Doesn't need ACK
 			Packet->write<ChannelID>(ChannelID::Unreliable_Latest);	//	Write the ChannelID
@@ -21,7 +21,7 @@ namespace KNet
 		}
 
 		//	Receives a packet
-		inline const bool TryReceive(NetPacket_Recv* const Packet, uintmax_t& UniqueID)
+		inline const bool TryReceive(NetPacket_Recv* const Packet, const uintmax_t& UniqueID) noexcept
 		{
 			if (UniqueID <= IN_LastID)
 			{

@@ -23,12 +23,12 @@
 namespace KNet
 {
 	RIO_EXTENSION_FUNCTION_TABLE g_RIO;
-	const DWORD ADDR_SIZE = sizeof(SOCKADDR_INET);
-	const DWORD MAX_PACKET_SIZE = 1472;
-	const DWORD PENDING_SENDS = 10240;	//	Internal NetPoint send packets
-	const DWORD PENDING_RECVS = 10240;	//	Internal NetPoint recv packets
-	const DWORD GLOBAL_SENDS = 64;	//	Global PeerNet send packets
-	const DWORD GLOBAL_ADDRS = 1024;	//	Global PeerNet addresses
+	constexpr DWORD ADDR_SIZE = sizeof(SOCKADDR_INET);
+	constexpr DWORD MAX_PACKET_SIZE = 1472;
+	constexpr DWORD PENDING_SENDS = 10240;	//	Internal NetPoint send packets
+	constexpr DWORD PENDING_RECVS = 10240;	//	Internal NetPoint recv packets
+	constexpr DWORD GLOBAL_SENDS = 64;	//	Global PeerNet send packets
+	constexpr DWORD GLOBAL_ADDRS = 1024;	//	Global PeerNet addresses
 	//
 	//	Internal Packet IDs
 	enum class PacketID : uint8_t {
@@ -108,11 +108,11 @@ namespace KNet
 		WSADATA wsadata;
 		const size_t iResult = WSAStartup(MAKEWORD(2, 2), &wsadata);
 		if (iResult != 0) {
-			printf("\tWSAStartup Error: %i\n", (int)iResult);
+			printf("\tWSAStartup Error: %zu\n", iResult);
 		}
 		else {
 			//	Create a dummy socket long enough to get our RIO Function Table pointer
-			SOCKET RioSocket = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, NULL, WSA_FLAG_REGISTERED_IO);
+			const SOCKET RioSocket = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, NULL, WSA_FLAG_REGISTERED_IO);
 			GUID functionTableID = WSAID_MULTIPLE_RIO;
 			DWORD dwBytes = 0;
 			KN_CHECK_RESULT(WSAIoctl(RioSocket, SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER,
@@ -129,7 +129,7 @@ namespace KNet
 	}
 
 	//	Deinitialize the library
-	void Deinitialize()
+	void Deinitialize() noexcept
 	{
 		printf("Deinitialize KNet\n");
 		delete AddressPool;

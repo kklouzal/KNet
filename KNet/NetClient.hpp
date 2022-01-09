@@ -50,7 +50,7 @@ namespace KNet
 			//	Create the IOCP handle
 			IOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
 			if (IOCP == NULL) {
-				printf("Create IO Completion Port - Client Error: (%i)\n", GetLastError());
+				printf("Create IO Completion Port - Client Error: (%lu)\n", GetLastError());
 			}
 		}
 
@@ -97,8 +97,8 @@ namespace KNet
 		{
 			long long SentTime;
 			Packet->read<long long>(SentTime);
-			std::chrono::nanoseconds ns(std::chrono::high_resolution_clock::now().time_since_epoch().count() - SentTime);
-			std::chrono::microseconds ms = std::chrono::duration_cast<std::chrono::microseconds>(ns);
+			const std::chrono::nanoseconds ns(std::chrono::high_resolution_clock::now().time_since_epoch().count() - SentTime);
+			const std::chrono::microseconds ms = std::chrono::duration_cast<std::chrono::microseconds>(ns);
 			//
 			PacketID PID;
 			Packet->read<PacketID>(PID);
@@ -113,7 +113,7 @@ namespace KNet
 				Packet->read<ChannelID>(CHID);
 				Packet->read<uintmax_t>(UniqueID);
 				if (CHID == ChannelID::Reliable_Any) {
-					printf("\tRecv_ANY_ACK PID: %i UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
+					printf("\tRecv_ANY_ACK PID: %u UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
 					NetPacket_Send* AcknowledgedPacket = Reliable_Any->TryACK(UniqueID);
 					//
 					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
@@ -123,7 +123,7 @@ namespace KNet
 					}
 				}
 				else if (CHID == ChannelID::Reliable_Latest) {
-					printf("\tRecv_LATEST_ACK PID: %i UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
+					printf("\tRecv_LATEST_ACK PID: %u UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
 					NetPacket_Send* AcknowledgedPacket = Reliable_Latest->TryACK(UniqueID);
 					//
 					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
@@ -133,7 +133,7 @@ namespace KNet
 					}
 				}
 				else if (CHID == ChannelID::Reliable_Ordered) {
-					printf("\tRecv_ORDERED_ACK PID: %i UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
+					printf("\tRecv_ORDERED_ACK PID: %u UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
 					NetPacket_Send* AcknowledgedPacket = Reliable_Ordered->TryACK(UniqueID);
 					//
 					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
@@ -144,7 +144,7 @@ namespace KNet
 				}
 			}
 		}
-		inline NetPacket_Send* ProcessPacket_Handshake(NetPacket_Recv* Packet)
+		inline NetPacket_Send* ProcessPacket_Handshake(NetPacket_Recv* Packet) noexcept
 		{
 			//
 			//	Push the received packet into this client
@@ -235,7 +235,7 @@ namespace KNet
 			return ACK;
 		}
 
-		void ReturnPacket(NetPacket_Send* Packet)
+		void ReturnPacket(NetPacket_Send* Packet) noexcept
 		{
 			
 			if (Packet->GetPID() == PacketID::Acknowledgement)
@@ -264,13 +264,13 @@ namespace KNet
 			for (unsigned int i = 0; i < pEntriesCount; i++) {
 				//
 				//	Release Send Packet Operation
-				if (pEntries[i].lpCompletionKey == (ULONG_PTR)Completions::RecvUnread) {
+				if (pEntries[i].lpCompletionKey == static_cast<ULONG_PTR>(Completions::RecvUnread)) {
 					_Packets.push_back(static_cast<NetPacket_Recv*>(pEntries[i].lpOverlapped->Pointer));
 				}
-				else if (pEntries[i].lpCompletionKey == (ULONG_PTR)Completions::ReleaseACK) {
+				else if (pEntries[i].lpCompletionKey == static_cast<ULONG_PTR>(Completions::ReleaseACK)) {
 					ACKPacketPool->ReturnUsedObject(static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
 				}
-				else if (pEntries[i].lpCompletionKey == (ULONG_PTR)Completions::ReleaseSEND) {
+				else if (pEntries[i].lpCompletionKey == static_cast<ULONG_PTR>(Completions::ReleaseSEND)) {
 					SendPacketPool->ReturnUsedObject(static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
 				}
 			}
