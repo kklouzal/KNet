@@ -265,13 +265,13 @@ namespace KNet
 				//
 				//	Release Send Packet Operation
 				if (pEntries[i].lpCompletionKey == (ULONG_PTR)Completions::RecvUnread) {
-					_Packets.push_back(reinterpret_cast<NetPacket_Recv*>(pEntries[i].lpOverlapped->Pointer));
+					_Packets.push_back(static_cast<NetPacket_Recv*>(pEntries[i].lpOverlapped->Pointer));
 				}
 				else if (pEntries[i].lpCompletionKey == (ULONG_PTR)Completions::ReleaseACK) {
-					ACKPacketPool->ReturnUsedObject(reinterpret_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
+					ACKPacketPool->ReturnUsedObject(static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
 				}
 				else if (pEntries[i].lpCompletionKey == (ULONG_PTR)Completions::ReleaseSEND) {
-					SendPacketPool->ReturnUsedObject(reinterpret_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
+					SendPacketPool->ReturnUsedObject(static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
 				}
 			}
 			return _Packets;

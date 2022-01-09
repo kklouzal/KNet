@@ -39,7 +39,7 @@ namespace KNet {
 			//
 			bDontRelease(false)
 		{
-			Overlap.Pointer = this;
+			Overlap.Pointer = static_cast<void*>(this);
 		}
 
 		~NetPacket_Send() {
@@ -137,7 +137,7 @@ namespace KNet {
 			m_read(sizeof(PacketID) + sizeof(ClientID)),
 			bRecycle(false)
 			{
-				Overlap.Pointer = this;
+				Overlap.Pointer = static_cast<void*>(this);
 			}
 
 		~NetPacket_Recv() {

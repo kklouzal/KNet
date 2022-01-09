@@ -97,7 +97,7 @@ namespace KNet
 			RecvCompletion.Iocp.IocpHandle = RecvIOCP;
 			RecvCompletion.Iocp.CompletionKey = (void*)RecvCompletion::RecvComplete;
 			RecvCompletion.Iocp.Overlapped = &RecvIOCPOverlap;
-			SendQueue = g_RIO.RIOCreateCompletionQueue(PENDING_SENDS, &SendCompletion);
+			SendQueue = g_RIO.RIOCreateCompletionQueue(PENDING_SENDS + GLOBAL_SENDS, &SendCompletion);
 			if (SendQueue == RIO_INVALID_CQ) {
 				printf("RIO Create Completion Queue Failed - Send Error: (%i)\n", GetLastError());
 			}
@@ -107,11 +107,11 @@ namespace KNet
 			}
 			//
 			//	Create Send/Recv Request Queue
-			SendRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketSend, 0, 1, PENDING_SENDS, 1, SendQueue, SendQueue, &SendCompletion);
+			SendRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketSend, 0, 1, PENDING_SENDS + GLOBAL_SENDS, 1, SendQueue, SendQueue, nullptr);
 			if (SendRequestQueue == RIO_INVALID_RQ) {
 				printf("RIO Create Request Queue Failed - Send Error: (%i)\n", GetLastError());
 			}
-			RecvRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketRecv, PENDING_RECVS, 1, 0, 1, RecvQueue, RecvQueue, &RecvCompletion);
+			RecvRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketRecv, PENDING_RECVS, 1, 0, 1, RecvQueue, RecvQueue, nullptr);
 			if (RecvRequestQueue == RIO_INVALID_RQ) {
 				printf("RIO Create Request Queue Failed - Recv Error: (%i)\n", GetLastError());
 			}
@@ -131,7 +131,7 @@ namespace KNet
 				Packet->Address->Length = ADDR_SIZE;
 				Packet->Length = Packet->Length - ADDR_SIZE;
 				//
-				if (!g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, Packet)) {
+				if (!g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, static_cast<void*>(Packet))) {
 					printf("RIO Receive Failed - Code: (%i)\n", GetLastError());
 				}
 			}
@@ -238,13 +238,13 @@ namespace KNet
 				//
 				//	Release Send Packet Operation
 				if (pEntries[i].lpCompletionKey == (ULONG_PTR)PointCompletion::SendRelease) {
-					NetPacket_Send* Packet = reinterpret_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer);
+					NetPacket_Send* Packet = static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer);
 					KNet::SendPacketPool->ReturnUsedObject(Packet);
 				}
 				//
 				//	Unread Packet Operation
 				else if(pEntries[i].lpCompletionKey == (ULONG_PTR)PointCompletion::RecvUnread) {
-					_Updates.first.push_back(reinterpret_cast<NetPacket_Recv*>(pEntries[i].lpOverlapped->Pointer));
+					_Updates.first.push_back(static_cast<NetPacket_Recv*>(pEntries[i].lpOverlapped->Pointer));
 				}
 				//
 				//	Client Update Operation
@@ -255,7 +255,7 @@ namespace KNet
 				//
 				//	Server Update Operation
 				else if (pEntries[i].lpCompletionKey == (ULONG_PTR)PointCompletion::ServerUpdate) {
-					//_Updates.??third??.push_back(reinterpret_cast<NetServer*>(pEntries[i].lpOverlapped->Pointer));
+					//_Updates.??third??.push_back(static_cast<NetServer*>(pEntries[i].lpOverlapped->Pointer));
 				}
 			}
 			return _Updates;
@@ -285,7 +285,7 @@ namespace KNet
 					//	TODO: abort packet processing when corrupt
 					if (KN_CHECK_RESULT2(RIO_CORRUPT_CQ, numResults))
 					{
-						printf("Corrupt Results!\n");
+						printf("Corrupt SEND Results!\n");
 					}
 					if (numResults > 0) {
 						//
@@ -318,13 +318,13 @@ namespace KNet
 				//
 				//	Initiate Send Operation
 				else if (completionKey == (ULONG_PTR)SendCompletion::SendInitiate) {
-					NetPacket_Send* Packet = reinterpret_cast<NetPacket_Send*>(pOverlapped->Pointer);
+					NetPacket_Send* Packet = static_cast<NetPacket_Send*>(pOverlapped->Pointer);
 					//
 					//	Compress our packets raw binary data straight into the SendBuffer
 					Packet->Compress();
 					//
 					//	Send the data to its destination
-					g_RIO.RIOSendEx(SendRequestQueue, Packet, 1, NULL, Packet->Address, 0, 0, 0, Packet);
+					g_RIO.RIOSendEx(SendRequestQueue, Packet, 1, NULL, Packet->Address, 0, 0, 0, static_cast<void*>(Packet));
 				}
 				//
 				//	Shutdown Thread Operation
@@ -356,7 +356,9 @@ namespace KNet
 					//	WARN: should probably handle this..
 					//	TODO: abort packet processing when corrupt
 					if (KN_CHECK_RESULT2(RIO_CORRUPT_CQ, numResults))
-					{ }
+					{
+						printf("Corrupt RECV Results!\n");
+					}
 					if (numResults > 0) {
 						//
 						//	Grab the packet and decompress the data
@@ -421,7 +423,7 @@ namespace KNet
 						//
 						//	Immediately recycle the packet by using it to queue up a new receive operation
 						if (Packet->bRecycle) {
-							KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, Packet), false);
+							KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, static_cast<void*>(Packet)), false);
 						}
 					}
 					else { printf("Dequeued 0 Recv Completions\n"); }
@@ -435,10 +437,10 @@ namespace KNet
 				//
 				//	Release Recv Packet Operation
 				else if (completionKey == (ULONG_PTR)RecvCompletion::RecvRelease) {
-					NetPacket_Recv* Packet = reinterpret_cast<NetPacket_Recv*>(pOverlapped->Pointer);
+					NetPacket_Recv* Packet = static_cast<NetPacket_Recv*>(pOverlapped->Pointer);
 					//
 					//	Queue up a new receive
-					KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, Packet), false);
+					KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, static_cast<void*>(Packet)), false);
 				}
 				//
 				//	Shutdown Thread Operation

@@ -25,7 +25,7 @@ int main()
     {
         //
         //  Send a test packet(s)
-        for (auto j = 0; j <= 16; j++)
+        for (auto j = 0; j < 1; j++)
         {
             KNet::NetPacket_Send* Pkt = KNet::SendPacketPool->GetFreeObject();
             if (Pkt)
@@ -77,30 +77,30 @@ int main()
             }
             //
             //  Send each client a packet on each channel
-            auto Pkt1 = _Client->GetFreePacket<KNet::ChannelID::Unreliable_Any>();
+            KNet::NetPacket_Send* Pkt1 = _Client->GetFreePacket<KNet::ChannelID::Unreliable_Any>();
             if (Pkt1) {
                 Pkt1->write<const char*>("This is an Unreliable_Any packet");
                 Point->SendPacket(Pkt1);
             } else { printf("PKT1 UNAVAILABLE!\n"); }
-            auto Pkt2 = _Client->GetFreePacket<KNet::ChannelID::Unreliable_Latest>();
+            KNet::NetPacket_Send* Pkt2 = _Client->GetFreePacket<KNet::ChannelID::Unreliable_Latest>();
             if (Pkt2) {
                 Pkt2->write<const char*>("This is an Unreliable_Latest packet");
                 Point->SendPacket(Pkt2);
             }
             else { printf("PKT2 UNAVAILABLE!\n"); }
-            auto Pkt3 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Any>();
+            KNet::NetPacket_Send* Pkt3 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Any>();
             if (Pkt3) {
                 Pkt3->write<const char*>("This is a Reliable_Any packet");
                 Point->SendPacket(Pkt3);
             }
             else { printf("PKT3 UNAVAILABLE!\n"); }
-            auto Pkt4 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Latest>();
+            KNet::NetPacket_Send* Pkt4 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Latest>();
             if (Pkt4) {
                 Pkt4->write<const char*>("This is a Reliable_Latest packet");
                 Point->SendPacket(Pkt4);
             }
             else { printf("PKT4 UNAVAILABLE!\n"); }
-            auto Pkt5 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Ordered>();
+            KNet::NetPacket_Send* Pkt5 = _Client->GetFreePacket<KNet::ChannelID::Reliable_Ordered>();
             if (Pkt5) {
                 Pkt5->write<const char*>("This is a Reliable_Ordered packet");
                 Point->SendPacket(Pkt5);
