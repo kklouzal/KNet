@@ -121,15 +121,15 @@ namespace KNet
 			for (auto Packet : RecvPackets->GetAllObjects()) {
 				//
 				//	BufferID
-				Packet->Address->BufferId = Packet->BufferId;
+				Packet->Address->BufferId = ((PRIO_BUF)Packet)->BufferId;
 				//
 				//	Offsets
-				Packet->Address->Offset = Packet->Offset;
-				Packet->Offset = Packet->Offset + ADDR_SIZE;
+				Packet->Address->Offset = ((PRIO_BUF)Packet)->Offset;
+				((PRIO_BUF)Packet)->Offset += ADDR_SIZE;
 				//
 				//	Lengths
 				Packet->Address->Length = ADDR_SIZE;
-				Packet->Length = Packet->Length - ADDR_SIZE;
+				((PRIO_BUF)Packet)->Length -= ADDR_SIZE;
 				//
 				if (!g_RIO.RIOReceiveEx(RecvRequestQueue, dynamic_cast<PRIO_BUF>(Packet), 1, NULL, Packet->Address, NULL, 0, 0, static_cast<void*>(Packet))) {
 					printf("RIO Receive Failed - Code: (%i)\n", GetLastError());

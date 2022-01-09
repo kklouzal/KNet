@@ -19,9 +19,9 @@ namespace KNet
 			//	Create our pool of objects
 			for (uint32_t i = 0; i < PoolSize; i++) {
 				T* Object = new T(_Data);
-				Object->BufferId = _BufferID;
-				Object->Length = MaxSize;
-				Object->Offset = MaxSize * i;
+				((PRIO_BUF)Object)->BufferId = _BufferID;
+				((PRIO_BUF)Object)->Length = MaxSize;
+				((PRIO_BUF)Object)->Offset = MaxSize * i;
 				Object->Parent = ParentObject;
 				_Pool.push_back(Object);
 				_Free.push_back(Object);
