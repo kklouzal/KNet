@@ -122,8 +122,8 @@ namespace KNet
 				sizeof(g_RIO),
 				&dwBytes, 0, 0), SOCKET_ERROR);
 			closesocket(RioSocket);
-			SendPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS, 99, nullptr);
-			AddressPool = new NetPool<NetAddress, ADDR_SIZE>(GLOBAL_ADDRS, 99, nullptr);
+			SendPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS, nullptr);
+			AddressPool = new NetPool<NetAddress, ADDR_SIZE>(GLOBAL_ADDRS, nullptr);
 			printf("Initialization Complete\n");
 		}
 	}

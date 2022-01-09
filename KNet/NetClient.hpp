@@ -44,8 +44,8 @@ namespace KNet
 			_ADDR_RECV = AddressPool->GetFreeObject();
 			_ADDR_RECV->Resolve(_IP_RECV, _PORT_RECV);
 			//
-			ACKPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS, 0, this);
-			SendPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS, 1, this);
+			ACKPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS, this);
+			SendPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS, this);
 			//
 			//	Create the IOCP handle
 			IOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);

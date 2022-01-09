@@ -12,8 +12,6 @@ namespace KNet
 		{
 			Packet->bDontRelease = false;	//	Doesn't need ACK
 			Packet->write<ChannelID>(ChannelID::Unreliable_Any);	//	Write the ChannelID
-
-			Packet->InternalLastUse = (uint8_t)ChannelID::Unreliable_Any;
 		}
 	};
 }

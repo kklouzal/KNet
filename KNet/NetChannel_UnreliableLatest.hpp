@@ -18,8 +18,6 @@ namespace KNet
 			Packet->bDontRelease = false;	//	Doesn't need ACK
 			Packet->write<ChannelID>(ChannelID::Unreliable_Latest);	//	Write the ChannelID
 			Packet->write<uintmax_t>(OUT_NextID++);					//	Write and increment the current UniqueID
-
-			Packet->InternalLastUse = (uint8_t)ChannelID::Unreliable_Latest;
 		}
 
 		//	Receives a packet

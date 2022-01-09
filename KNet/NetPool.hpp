@@ -10,7 +10,7 @@ namespace KNet
 		std::deque<T*> _Pool;
 		std::deque<T*> _Free;
 	public:
-		NetPool(const DWORD PoolSize, unsigned int Internal, void* ParentObject) :
+		NetPool(const DWORD PoolSize, void* ParentObject) :
 			_Data(new char[PoolSize * MaxSize]),
 			_BufferID(g_RIO.RIORegisterBuffer(_Data, PoolSize* MaxSize))
 		{
@@ -25,8 +25,6 @@ namespace KNet
 				Object->Parent = ParentObject;
 				_Pool.push_back(Object);
 				_Free.push_back(Object);
-				Object->InternalID = Internal;
-				Object->InternalUniqueID = i;
 			}
 		}
 

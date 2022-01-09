@@ -19,10 +19,6 @@ namespace KNet {
 		void* Parent = nullptr;
 		bool bDontRelease;
 
-		unsigned int InternalID;
-		uintmax_t InternalUniqueID;
-		uint8_t InternalLastUse;
-
 		NetPacket_Send(char* const Buffer) :
 			RIO_BUF(),
 			Overlap(OVERLAPPED()),
@@ -117,9 +113,6 @@ namespace KNet {
 	public:
 		PRIO_BUF Address = nullptr;
 		void* Parent = nullptr;
-
-		unsigned int InternalID;
-		uintmax_t InternalUniqueID;
 
 		NetPacket_Recv(char* const Buffer) :
 			RIO_BUF(),

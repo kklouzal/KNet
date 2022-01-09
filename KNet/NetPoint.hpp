@@ -57,7 +57,7 @@ namespace KNet
 		//	RecvAddr - Receives packets in on this address
 		NetPoint(NetAddress* SendAddr, NetAddress* RecvAddr) :
 			bRunning(true), SendAddress(SendAddr), RecvAddress(RecvAddr),
-			RecvPackets(new NetPool<NetPacket_Recv, ADDR_SIZE + MAX_PACKET_SIZE>(PENDING_RECVS, 50, this)),
+			RecvPackets(new NetPool<NetPacket_Recv, ADDR_SIZE + MAX_PACKET_SIZE>(PENDING_RECVS, this)),
 			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0)
 		{
 			//
