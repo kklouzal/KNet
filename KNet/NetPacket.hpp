@@ -85,7 +85,7 @@ namespace KNet {
 		//	Writes the next value in our packet
 		//	Writes MUST be read in the same order they were written!
 		template <typename T> const bool write(T value) {
-			static_assert(std::is_trivial_v<T>);
+			//static_assert(std::is_trivial_v<T>);
 			//
 			//	Get the size of this write
 			const std::size_t bytes = sizeof(T);
@@ -178,7 +178,7 @@ namespace KNet {
 		//	Reads and returns the next value in our packet.
 		//	Reads MUST occur in the same order they were written!
 		template <typename T> const bool read(T& Var) {
-			static_assert(std::is_trivial_v<T>);
+			//static_assert(std::is_trivial_v<T>);
 			//
 			//	Get the size of this read
 			const std::size_t bytes = sizeof(T);
