@@ -48,8 +48,8 @@ namespace KNet
 			SendPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS, this);
 			//
 			//	Create the IOCP handle
-			IOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
-			if (IOCP == NULL) {
+			IOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
+			if (IOCP == nullptr) {
 				printf("Create IO Completion Port - Client Error: (%lu)\n", GetLastError());
 			}
 		}

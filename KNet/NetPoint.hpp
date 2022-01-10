@@ -36,6 +36,9 @@ namespace KNet
 		ULONG pEntriesCount;
 		HANDLE PointIOCP;
 
+		ZSTD_CCtx* cctx;
+		ZSTD_DCtx* dctx;
+
 		enum class SendCompletion : ULONG_PTR {
 			SendComplete,
 			SendInitiate,
@@ -58,33 +61,34 @@ namespace KNet
 		NetPoint(NetAddress* SendAddr, NetAddress* RecvAddr) :
 			bRunning(true), SendAddress(SendAddr), RecvAddress(RecvAddr),
 			RecvPackets(new NetPool<NetPacket_Recv, ADDR_SIZE + MAX_PACKET_SIZE>(PENDING_RECVS, this)),
-			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0)
+			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0),
+			cctx(ZSTD_createCCtx()), dctx(ZSTD_createDCtx())
 		{
 			//
 			//	Create this NetPoints IOCP handle
-			PointIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
-			if (PointIOCP == NULL) {
+			PointIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
+			if (PointIOCP == nullptr) {
 				printf("Create IO Completion Port - Point Error: (%lu)\n", GetLastError());
 			}
 			//
 			//	Create Send/Recv Sockets
 			constexpr DWORD flags = WSA_FLAG_REGISTERED_IO;
-			_SocketSend = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, 0, flags);
+			_SocketSend = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, nullptr, 0, flags);
 			if (_SocketSend == INVALID_SOCKET) {
 				printf("WSA Socket Failed - Code: (%lu)\n", GetLastError());
 			}
-			_SocketRecv = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, 0, flags);
+			_SocketRecv = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, nullptr, 0, flags);
 			if (_SocketRecv == INVALID_SOCKET) {
 				printf("WSA Socket Failed - Code: (%lu)\n", GetLastError());
 			}
 			//
 			//	Create Send/Recv Completion Queue
-			SendIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
-			if (SendIOCP == NULL) {
+			SendIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
+			if (SendIOCP == nullptr) {
 				printf("Create IO Completion Port - Send Error: (%lu)\n", GetLastError());
 			}
-			RecvIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
-			if (RecvIOCP == NULL) {
+			RecvIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
+			if (RecvIOCP == nullptr) {
 				printf("Create IO Completion Port - Recv Error: (%lu)\n", GetLastError());
 			}
 			RIO_NOTIFICATION_COMPLETION SendCompletion = {};
@@ -107,11 +111,11 @@ namespace KNet
 			}
 			//
 			//	Create Send/Recv Request Queue
-			SendRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketSend, 0, 1, PENDING_SENDS + GLOBAL_SENDS, 1, SendQueue, SendQueue, NULL);
+			SendRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketSend, 0, 1, PENDING_SENDS + GLOBAL_SENDS, 1, SendQueue, SendQueue, nullptr);
 			if (SendRequestQueue == RIO_INVALID_RQ) {
 				printf("RIO Create Request Queue Failed - Send Error: (%lu)\n", GetLastError());
 			}
-			RecvRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketRecv, PENDING_RECVS, 1, 0, 1, RecvQueue, RecvQueue, NULL);
+			RecvRequestQueue = g_RIO.RIOCreateRequestQueue(_SocketRecv, PENDING_RECVS, 1, 0, 1, RecvQueue, RecvQueue, nullptr);
 			if (RecvRequestQueue == RIO_INVALID_RQ) {
 				printf("RIO Create Request Queue Failed - Recv Error: (%lu)\n", GetLastError());
 			}
@@ -175,6 +179,10 @@ namespace KNet
 				printf("Post Queued Completion Status - Recv Error: %lu\n", GetLastError());
 			}
 			RecvThread->join();
+			//
+			//	Cleaup ZSTD
+			ZSTD_freeDCtx(dctx);
+			ZSTD_freeCCtx(cctx);
 			//
 			//	Cleanup Client/Server Objects
 			for (auto& _Client : Clients)
@@ -267,7 +275,7 @@ namespace KNet
 			printf("Send Thread Started\n");
 			DWORD numberOfBytes = 0;
 			ULONG_PTR completionKey;
-			OVERLAPPED* pOverlapped = 0;
+			OVERLAPPED* pOverlapped = nullptr;
 			RIORESULT Result;
 			ULONG numResults;
 			while (bRunning.load()) {
@@ -296,8 +304,6 @@ namespace KNet
 							//
 							//	Don't release the packet if it needs to wait for an ACK
 							if (!Packet->bDontRelease) {
-								//	WARN: This is a race condition, Send_Thread communicating with Recv_Thread directly..
-								//	TODO: Use IOCP to return packets..
 								((NetClient*)Packet->Parent)->ReturnPacket(Packet);
 							}
 						}
@@ -321,7 +327,7 @@ namespace KNet
 					NetPacket_Send* Packet = static_cast<NetPacket_Send*>(pOverlapped->Pointer);
 					//
 					//	Compress our packets raw binary data straight into the SendBuffer
-					Packet->Compress();
+					Packet->Compress(cctx);
 					//
 					//	Send the data to its destination
 					g_RIO.RIOSendEx(SendRequestQueue, Packet, 1, NULL, Packet->Address, 0, 0, 0, pOverlapped->Pointer);
@@ -339,7 +345,7 @@ namespace KNet
 			printf("Recv Thread Started\n");
 			DWORD numberOfBytes = 0;
 			ULONG_PTR completionKey = 0;
-			OVERLAPPED* pOverlapped = 0;
+			OVERLAPPED* pOverlapped = nullptr;
 			RIORESULT Result;
 			ULONG numResults;
 			while (bRunning.load()) {
@@ -363,7 +369,7 @@ namespace KNet
 						//
 						//	Grab the packet and decompress the data
 						NetPacket_Recv* Packet = reinterpret_cast<NetPacket_Recv*>(Result.RequestContext);
-						Packet->Decompress(Result.BytesTransferred);
+						Packet->Decompress(dctx, Result.BytesTransferred);
 						//
 						//	Try to read Packet Header
 						const PacketID OpID = Packet->GetPID();

@@ -41,12 +41,14 @@ namespace KNet {
 			delete[] BinaryData;
 		}
 
-		inline void Compress() noexcept
+		inline void Compress(ZSTD_CCtx* cctx) noexcept
 		{
-			memcpy(&DataBuffer[Offset], BinaryData, m_write);
+			//memcpy(&DataBuffer[Offset], BinaryData, m_write);
 			//if (!LZ4_compress_default(&BinaryData[0], &DataBuffer[Offset], (int)m_write, MAX_PACKET_SIZE)) {
 			//	printf("Packet Compression Failed\n");
 			//}
+
+			size_t const cSize = ZSTD_compressCCtx(cctx, &DataBuffer[Offset], MAX_PACKET_SIZE, BinaryData, m_write, 1);
 			m_write = sizeof(PacketID) + sizeof(ClientID);
 		}
 
@@ -140,13 +142,14 @@ namespace KNet {
 		//
 		//	Decompress our raw incoming data
 		//	Also reset the packet to it's initial state
-		inline void Decompress(const ULONG Size) noexcept
+		inline void Decompress(ZSTD_DCtx* dctx, const ULONG Size) noexcept
 		{
-			memcpy(&BinaryData[0], &DataBuffer[Offset], Size);
+			//memcpy(&BinaryData[0], &DataBuffer[Offset], Size);
 			//if (LZ4_decompress_safe(&DataBuffer[Offset], &BinaryData[0], Size, MAX_PACKET_SIZE) < 0)
 			//{
 				//printf("DECOMPRESS ERROR\n");
 			//}
+			size_t const dSize = ZSTD_decompressDCtx(dctx, &BinaryData[0], MAX_PACKET_SIZE, &DataBuffer[Offset], Size);
 			m_read = sizeof(PacketID) + sizeof(ClientID);
 			bRecycle = false;
 		}

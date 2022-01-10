@@ -78,9 +78,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>C:\Libraries\zstd\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Libraries\zstd\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>C:\Libraries\zstd\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Libraries\zstd\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -148,7 +152,6 @@
   <ItemGroup>
     <ClInclude Include="ErrorHandling.hpp" />
     <ClInclude Include="KNet.hpp" />
-    <ClInclude Include="lz4.h" />
     <ClInclude Include="NetAddress.hpp" />
     <ClInclude Include="NetChannel_Ordered.hpp" />
     <ClInclude Include="NetChannel_ReliableAny.hpp" />

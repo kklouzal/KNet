@@ -13,9 +13,6 @@
     <ClInclude Include="KNet.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="lz4.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="NetPool.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

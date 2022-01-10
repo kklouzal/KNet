@@ -16,7 +16,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "lz4.h"
+#include "zstd.h"
 
 #include "ErrorHandling.hpp"
 
@@ -112,7 +112,7 @@ namespace KNet
 		}
 		else {
 			//	Create a dummy socket long enough to get our RIO Function Table pointer
-			const SOCKET RioSocket = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, NULL, WSA_FLAG_REGISTERED_IO);
+			const SOCKET RioSocket = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, nullptr, NULL, WSA_FLAG_REGISTERED_IO);
 			GUID functionTableID = WSAID_MULTIPLE_RIO;
 			DWORD dwBytes = 0;
 			KN_CHECK_RESULT(WSAIoctl(RioSocket, SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER,
