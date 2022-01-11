@@ -148,7 +148,7 @@ namespace KNet
 		{
 			//
 			//	Push the received packet into this client
-			//KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
+			//KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &Packet->Overlap), false);
 			//
 			//	Formulate an acknowledgement
 			NetPacket_Send* ACK = ACKPacketPool->GetFreeObject();
@@ -174,7 +174,7 @@ namespace KNet
 			{
 				//
 				//	Push the received packet into this client
-				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
+				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &Packet->Overlap), false);
 				return nullptr;
 			}
 			uintmax_t UniqueID;
@@ -185,7 +185,7 @@ namespace KNet
 				{
 					//
 					//	Push the received packet into this client
-					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
+					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &Packet->Overlap), false);
 				}
 				return nullptr;
 			}
@@ -207,7 +207,7 @@ namespace KNet
 			{
 				//
 				//	Push the received packet into this client
-				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
+				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &Packet->Overlap), false);
 
 			}
 			else if (CHID == ChannelID::Reliable_Latest)
@@ -218,7 +218,7 @@ namespace KNet
 				{
 					//
 					//	Push the received packet into this client
-					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &Packet->Overlap), false);
+					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &Packet->Overlap), false);
 				}
 			}
 			else if (CHID == ChannelID::Reliable_Ordered)
@@ -227,7 +227,7 @@ namespace KNet
 				//	Loop through any packets returned and give them to this client
 				for (auto _Packet : Reliable_Ordered->TryReceive(Packet, UniqueID))
 				{
-					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::RecvUnread, &_Packet->Overlap), false);
+					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &_Packet->Overlap), false);
 				}
 			}
 			//
@@ -241,12 +241,12 @@ namespace KNet
 			if (Packet->GetPID() == PacketID::Acknowledgement)
 			{
 				//printf("->ReturnACK\n");
-				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::ReleaseACK, &Packet->Overlap), false);
+				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::ReleaseACK), &Packet->Overlap), false);
 			}
 			else
 			{
 				//printf("->ReturnSEND\n");
-				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, (ULONG_PTR)Completions::ReleaseSEND, &Packet->Overlap), false);
+				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::ReleaseSEND), &Packet->Overlap), false);
 			}
 		}
 
@@ -276,12 +276,6 @@ namespace KNet
 			}
 			return _Packets;
 		}
-
-		/*bool operator==(const SOCKADDR_INET& other) const {
-			return _ADDR.Ipv4.sin_addr.S_un.S_addr == other.Ipv4.sin_addr.S_un.S_addr
-				&& _ADDR.Ipv4.sin_port == other.Ipv4.sin_port
-				&& _ADDR.Ipv4.sin_family == other.Ipv4.sin_family;
-		}*/
 
 		//
 		//	So we can hide our OVERLAPPED variables

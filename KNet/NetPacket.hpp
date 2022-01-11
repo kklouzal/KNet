@@ -6,13 +6,13 @@ namespace KNet {
 	class NetPacket_Send : public RIO_BUF {
 	public:
 		OVERLAPPED Overlap;
-		alignas(alignof(std::max_align_t)) char* const DataBuffer;
-		alignas(alignof(std::max_align_t)) char* const BinaryData;
+		alignas(alignof(std::max_align_t)) char*const DataBuffer;
+		alignas(alignof(std::max_align_t)) char*const BinaryData;
 		size_t m_write;
 		//
 		//	Packet Header
-		PacketID* PID;
-		ClientID* CID;
+		PacketID*const PID;
+		ClientID*const CID;
 
 	public:
 		PRIO_BUF Address = nullptr;
@@ -48,7 +48,7 @@ namespace KNet {
 			//	printf("Packet Compression Failed\n");
 			//}
 
-			size_t const cSize = ZSTD_compressCCtx(cctx, &DataBuffer[Offset], MAX_PACKET_SIZE, BinaryData, m_write, 1);
+			ZSTD_compressCCtx(cctx, &DataBuffer[Offset], MAX_PACKET_SIZE, BinaryData, m_write, 1);
 			m_write = sizeof(PacketID) + sizeof(ClientID);
 		}
 
@@ -103,14 +103,14 @@ namespace KNet {
 	class NetPacket_Recv : public RIO_BUF {
 	public:
 		OVERLAPPED Overlap;
-		alignas(alignof(std::max_align_t)) char* const DataBuffer;
-		alignas(alignof(std::max_align_t)) char* const BinaryData;
+		alignas(alignof(std::max_align_t)) char*const DataBuffer;
+		alignas(alignof(std::max_align_t)) char*const BinaryData;
 		size_t m_read;
 		bool bRecycle;
 		//
 		//	Packet Header
-		PacketID* PID;
-		ClientID* CID;
+		PacketID*const PID;
+		ClientID*const CID;
 
 	public:
 		PRIO_BUF Address = nullptr;
@@ -149,7 +149,7 @@ namespace KNet {
 			//{
 				//printf("DECOMPRESS ERROR\n");
 			//}
-			size_t const dSize = ZSTD_decompressDCtx(dctx, &BinaryData[0], MAX_PACKET_SIZE, &DataBuffer[Offset], Size);
+			ZSTD_decompressDCtx(dctx, &BinaryData[0], MAX_PACKET_SIZE, &DataBuffer[Offset], Size);
 			m_read = sizeof(PacketID) + sizeof(ClientID);
 			bRecycle = false;
 		}

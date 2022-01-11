@@ -221,13 +221,13 @@ namespace KNet
 			if (Packet)
 			{
 				//	Send the packet
-				KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, (ULONG_PTR)NetPoint::SendCompletion::SendInitiate, &Packet->Overlap), false);
+				KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), &Packet->Overlap), false);
 			}
 		}
 
 		void ReleasePacket(NetPacket_Recv* Packet) noexcept {
 			//	Release the packet
-			KN_CHECK_RESULT(PostQueuedCompletionStatus(RecvIOCP, NULL, (ULONG_PTR)NetPoint::RecvCompletion::RecvRelease, &Packet->Overlap), false);
+			KN_CHECK_RESULT(PostQueuedCompletionStatus(RecvIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::RecvCompletion::RecvRelease), &Packet->Overlap), false);
 		}
 
 		//
@@ -245,7 +245,7 @@ namespace KNet
 			for (unsigned int i = 0; i < pEntriesCount; i++) {
 				//
 				//	Release Send Packet Operation
-				if (pEntries[i].lpCompletionKey == (ULONG_PTR)PointCompletion::SendRelease) {
+				if (pEntries[i].lpCompletionKey == static_cast<ULONG_PTR>(PointCompletion::SendRelease)) {
 					NetPacket_Send* Packet = static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer);
 					KNet::SendPacketPool->ReturnUsedObject(Packet);
 				}
@@ -284,7 +284,7 @@ namespace KNet
 				KN_CHECK_RESULT(GetQueuedCompletionStatus(SendIOCP, &numberOfBytes, &completionKey, &pOverlapped, INFINITE), false);
 				//
 				//	Send Completed Operation
-				if (completionKey == (ULONG_PTR)SendCompletion::SendComplete) {
+				if (completionKey == static_cast<ULONG_PTR>(SendCompletion::SendComplete)) {
 					//
 					//	Dequeue A Send
 					numResults = g_RIO.RIODequeueCompletion(SendQueue, &Result, 1);
@@ -304,13 +304,13 @@ namespace KNet
 							//
 							//	Don't release the packet if it needs to wait for an ACK
 							if (!Packet->bDontRelease) {
-								((NetClient*)Packet->Parent)->ReturnPacket(Packet);
+								static_cast<NetClient*>(Packet->Parent)->ReturnPacket(Packet);
 							}
 						}
 						else {
 							//
 							//	Hand the packet over to the main thread to be stored back in the SendBufferPool
-							KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, (ULONG_PTR)PointCompletion::SendRelease, &Packet->Overlap), false);
+							KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::SendRelease), &Packet->Overlap), false);
 						}
 					}
 					else { printf("Dequeued 0 Send Completions\n"); }
@@ -354,7 +354,7 @@ namespace KNet
 				KN_CHECK_RESULT(GetQueuedCompletionStatus(RecvIOCP, &numberOfBytes, &completionKey, &pOverlapped, INFINITE), false);
 				//
 				//	Received New Packet Operation
-				if (completionKey == (ULONG_PTR)RecvCompletion::RecvComplete) {
+				if (completionKey == static_cast<ULONG_PTR>(RecvCompletion::RecvComplete)) {
 					//
 					//	Dequeue A Receive
 					numResults = g_RIO.RIODequeueCompletion(RecvQueue, &Result, 1);
@@ -377,9 +377,9 @@ namespace KNet
 						//
 						//	Grab the source address information
 						const SOCKADDR_INET* Source = Packet->GetAddress();
-						std::string IP(inet_ntoa(Source->Ipv4.sin_addr));
+						const std::string IP(inet_ntoa(Source->Ipv4.sin_addr));
 						const u_short PORT = ntohs(Source->Ipv4.sin_port);
-						std::string ID(IP + ":" + std::to_string(PORT));
+						const std::string ID(IP + ":" + std::to_string(PORT));
 						//
 						//	Client logic
 						if (ClID == ClientID::Client)
@@ -389,7 +389,7 @@ namespace KNet
 							if (!Clients.count(ID))
 							{
 								Clients.emplace(ID, new NetClient(IP, PORT));
-								KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, (ULONG_PTR)PointCompletion::ClientUpdate, Clients[ID]), false);
+								KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::ClientUpdate), Clients[ID]), false);
 							}
 							//
 							//	Grab our NetClient object
@@ -424,7 +424,7 @@ namespace KNet
 						else if (ClID == ClientID::OutOfBand) {
 							//
 							//	Hand the packet over to the main thread for user processing
-							KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, (ULONG_PTR)PointCompletion::RecvUnread, &Packet->Overlap), false);
+							KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::RecvUnread), &Packet->Overlap), false);
 						}
 						//
 						//	Immediately recycle the packet by using it to queue up a new receive operation
