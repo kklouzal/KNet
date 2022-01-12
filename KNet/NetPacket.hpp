@@ -13,6 +13,7 @@ namespace KNet {
 		//	Packet Header
 		PacketID*const PID;
 		ClientID*const CID;
+		uintmax_t*const Timestamp;
 
 	public:
 		PRIO_BUF Address = nullptr;
@@ -28,9 +29,10 @@ namespace KNet {
 			//	Map our packet header variables
 			PID((PacketID*)&BinaryData[0]),
 			CID((ClientID*)&BinaryData[sizeof(PacketID)]),
+			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID)+sizeof(ClientID)]),
 			//
 			//	Offset the m_write position by the size of our header
-			m_write(sizeof(PacketID)+sizeof(ClientID)),
+			m_write(sizeof(PacketID) + sizeof(ClientID) + sizeof(uintmax_t)),
 			//
 			bDontRelease(false)
 		{
@@ -49,7 +51,7 @@ namespace KNet {
 			//}
 
 			ZSTD_compressCCtx(cctx, &DataBuffer[Offset], MAX_PACKET_SIZE, BinaryData, m_write, 1);
-			m_write = sizeof(PacketID) + sizeof(ClientID);
+			m_write = sizeof(PacketID) + sizeof(ClientID) + sizeof(uintmax_t);
 		}
 
 		//	TODO: Handle multiple destinations using vector of addresses:
@@ -76,6 +78,16 @@ namespace KNet {
 		ClientID GetCID() noexcept
 		{
 			return *CID;
+		}
+
+		void SetTimestamp(uintmax_t TS) noexcept
+		{
+			std::memcpy(Timestamp, &TS, sizeof(uintmax_t));
+		}
+
+		uintmax_t GetTimestamp() noexcept
+		{
+			return *Timestamp;
 		}
 
 		//
@@ -111,6 +123,7 @@ namespace KNet {
 		//	Packet Header
 		PacketID*const PID;
 		ClientID*const CID;
+		uintmax_t*const Timestamp;
 
 	public:
 		PRIO_BUF Address = nullptr;
@@ -126,9 +139,10 @@ namespace KNet {
 			//	Map our packet header variables
 			PID((PacketID*)&BinaryData[0]),
 			CID((ClientID*)&BinaryData[sizeof(PacketID)]),
+			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID)+sizeof(ClientID)]),
 			//
 			//	Offset the m_read position by the size of our header
-			m_read(sizeof(PacketID) + sizeof(ClientID)),
+			m_read(sizeof(PacketID) + sizeof(ClientID) + sizeof(uintmax_t)),
 			bRecycle(false)
 			{
 				Overlap.Pointer = this;
@@ -150,7 +164,7 @@ namespace KNet {
 				//printf("DECOMPRESS ERROR\n");
 			//}
 			ZSTD_decompressDCtx(dctx, &BinaryData[0], MAX_PACKET_SIZE, &DataBuffer[Offset], Size);
-			m_read = sizeof(PacketID) + sizeof(ClientID);
+			m_read = sizeof(PacketID) + sizeof(ClientID) + sizeof(uintmax_t);
 			bRecycle = false;
 		}
 
@@ -167,6 +181,11 @@ namespace KNet {
 		ClientID GetCID() noexcept
 		{
 			return *CID;
+		}
+
+		uintmax_t GetTimestamp() noexcept
+		{
+			return *Timestamp;
 		}
 
 		//

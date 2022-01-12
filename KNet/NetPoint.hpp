@@ -220,6 +220,9 @@ namespace KNet
 		void SendPacket(NetPacket_Send* Packet) noexcept {
 			if (Packet)
 			{
+				//
+				//	Set our Timestamp
+				Packet->SetTimestamp(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 				//	Send the packet
 				KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), &Packet->Overlap), false);
 			}

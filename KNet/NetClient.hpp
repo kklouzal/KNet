@@ -95,11 +95,6 @@ namespace KNet
 
 		inline void ProcessPacket_Acknowledgement(NetPacket_Recv* Packet)
 		{
-			long long SentTime;
-			Packet->read<long long>(SentTime);
-			const std::chrono::nanoseconds ns(std::chrono::high_resolution_clock::now().time_since_epoch().count() - SentTime);
-			const std::chrono::microseconds ms = std::chrono::duration_cast<std::chrono::microseconds>(ns);
-			//
 			PacketID PID;
 			Packet->read<PacketID>(PID);
 			if (PID == PacketID::Handshake)
@@ -113,31 +108,37 @@ namespace KNet
 				Packet->read<ChannelID>(CHID);
 				Packet->read<uintmax_t>(UniqueID);
 				if (CHID == ChannelID::Reliable_Any) {
-					printf("\tRecv_ANY_ACK PID: %u UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
 					NetPacket_Send* AcknowledgedPacket = Reliable_Any->TryACK(UniqueID);
 					//
 					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
 					if (AcknowledgedPacket) {
+						const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
+						const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
+						printf("\tRecv_ANY_ACK\t\tPID:%u UID:%ju ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
 						//printf("Return ANY Packet From ACK InternalID %i InternalUniqueID %i\n", AcknowledgedPacket->InternalID, AcknowledgedPacket->InternalUniqueID);
 						ReturnPacket(AcknowledgedPacket);
 					}
 				}
 				else if (CHID == ChannelID::Reliable_Latest) {
-					printf("\tRecv_LATEST_ACK PID: %u UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
 					NetPacket_Send* AcknowledgedPacket = Reliable_Latest->TryACK(UniqueID);
 					//
 					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
 					if (AcknowledgedPacket) {
+						const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
+						const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
+						printf("\tRecv_LATEST_ACK\t\tPID:%u UID:%ju ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
 						//printf("Return LATEST Packet From ACK InternalID %i InternalUniqueID %i\n", AcknowledgedPacket->InternalID, AcknowledgedPacket->InternalUniqueID);
 						ReturnPacket(AcknowledgedPacket);
 					}
 				}
 				else if (CHID == ChannelID::Reliable_Ordered) {
-					printf("\tRecv_ORDERED_ACK PID: %u UID: %ju %fms\n", PID, UniqueID, ms.count() * 0.001f);
 					NetPacket_Send* AcknowledgedPacket = Reliable_Ordered->TryACK(UniqueID);
 					//
 					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
 					if (AcknowledgedPacket) {
+						const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
+						const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
+						printf("\tRecv_ORDERED_ACK\tPID:%u UID:%ju ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
 						//printf("Return ORDERED Packet From ACK InternalID %i InternalUniqueID %i\n", AcknowledgedPacket->InternalID, AcknowledgedPacket->InternalUniqueID);
 						ReturnPacket(AcknowledgedPacket);
 					}
@@ -157,7 +158,7 @@ namespace KNet
 				ACK->AddDestination(_ADDR_RECV);
 				ACK->SetPID(PacketID::Acknowledgement);
 				ACK->SetCID(ClientID::Client);
-				ACK->write<long long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+				ACK->SetTimestamp(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 				ACK->write<PacketID>(PacketID::Handshake);
 				//	TODO: add more data..like actual packet ids
 			}
@@ -197,7 +198,7 @@ namespace KNet
 				ACK->AddDestination(_ADDR_RECV);
 				ACK->SetPID(PacketID::Acknowledgement);
 				ACK->SetCID(ClientID::Client);
-				ACK->write<long long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+				ACK->SetTimestamp(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 				ACK->write<PacketID>(PacketID::Data);
 				ACK->write<ChannelID>(CHID);
 				ACK->write<uintmax_t>(UniqueID);
