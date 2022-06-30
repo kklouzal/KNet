@@ -4,11 +4,11 @@ int main()
 {
     //
     //  Initialize KNet
-	KNet::Initialize();
+    KNet::Initialize();
 
     //
     //  Resolve our send and receive addresses
-    
+
     auto SendAddr = KNet::AddressPool->GetFreeObject();
     auto RecvAddr = KNet::AddressPool->GetFreeObject();
     SendAddr->Resolve("192.168.1.98", 9000);
@@ -22,13 +22,13 @@ int main()
     auto RemoteAddr = KNet::AddressPool->GetFreeObject();
     RemoteAddr->Resolve("96.38.165.24", 27015);
 
-    std::system("PAUSE");
     //
     //  Hold onto any connected clients
     std::deque<KNet::NetClient*> ConnectedClients;
 
-    for (auto i = 0; i < 512; i++) // 20 iterations ensures packets are being recycled
+    while (true) // 20 iterations ensures packets are being recycled
     {
+        std::system("PAUSE");
         //
         //  Send a test packet(s)
         for (auto j = 0; j < 1; j++)
@@ -87,7 +87,8 @@ int main()
             if (Pkt1) {
                 Pkt1->write<const char*>("This is an Unreliable_Any packet");
                 Point->SendPacket(Pkt1);
-            } else { printf("PKT1 UNAVAILABLE!\n"); }
+            }
+            else { printf("PKT1 UNAVAILABLE!\n"); }
             KNet::NetPacket_Send* Pkt2 = _Client->GetFreePacket<KNet::ChannelID::Unreliable_Latest>();
             if (Pkt2) {
                 Pkt2->write<const char*>("This is an Unreliable_Latest packet");
@@ -122,6 +123,6 @@ int main()
 
     //
     //  Deinitialize the library
-	KNet::Deinitialize();
-	return 0;
+    KNet::Deinitialize();
+    return 0;
 }
