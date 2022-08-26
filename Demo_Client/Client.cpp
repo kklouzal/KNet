@@ -11,8 +11,8 @@ int main()
 
     auto SendAddr = KNet::AddressPool->GetFreeObject();
     auto RecvAddr = KNet::AddressPool->GetFreeObject();
-    SendAddr->Resolve("192.168.1.98", 9000);
-    RecvAddr->Resolve("192.168.1.98", 9001);
+    SendAddr->Resolve("192.168.1.98", 9002);
+    RecvAddr->Resolve("192.168.1.98", 9003);
 
     //
     //  Create the socket
@@ -20,7 +20,7 @@ int main()
 
 
     auto RemoteAddr = KNet::AddressPool->GetFreeObject();
-    RemoteAddr->Resolve("96.38.165.24", 27015);
+    RemoteAddr->Resolve("192.168.1.98", 9001);
 
     //
     //  Hold onto any connected clients

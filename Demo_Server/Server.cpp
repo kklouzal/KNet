@@ -54,7 +54,7 @@ int main()
                 const char* Dat;
                 if (_Packet->read<const char*>(Dat))
                 {
-                    printf("%s\n", Dat);
+                    //printf("%s\n", Dat);
                 }
                 //
                 //  Release our packet when we're done with it
