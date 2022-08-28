@@ -6,14 +6,14 @@ namespace KNet {
 	class NetPacket_Send : public RIO_BUF {
 	public:
 		OVERLAPPED Overlap;
-		alignas(alignof(std::max_align_t)) char*const DataBuffer;
-		alignas(alignof(std::max_align_t)) char*const BinaryData;
+		alignas(alignof(std::max_align_t)) char* const DataBuffer;
+		alignas(alignof(std::max_align_t)) char* const BinaryData;
 		size_t m_write;
 		//
 		//	Packet Header
-		PacketID*const PID;
-		ClientID*const CID;
-		uintmax_t*const Timestamp;
+		PacketID* const PID;
+		ClientID* const CID;
+		uintmax_t* const Timestamp;
 
 	public:
 		PRIO_BUF Address = nullptr;
@@ -29,7 +29,7 @@ namespace KNet {
 			//	Map our packet header variables
 			PID((PacketID*)&BinaryData[0]),
 			CID((ClientID*)&BinaryData[sizeof(PacketID)]),
-			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID)+sizeof(ClientID)]),
+			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID)]),
 			//
 			//	Offset the m_write position by the size of our header
 			m_write(sizeof(PacketID) + sizeof(ClientID) + sizeof(uintmax_t)),
@@ -109,21 +109,49 @@ namespace KNet {
 			m_write += bytes;
 			return true;
 		}
+
+		//
+		//	Specialized
+		template <> const bool write(const char* value) noexcept {
+			const size_t Len = strlen(value);
+			//
+			//	Get the size of this write
+			constexpr std::size_t bytes = sizeof(size_t);
+			//
+			//	Ensure we don't write past the end of our data buffer
+			if (m_write + bytes + Len >= MAX_PACKET_SIZE) { return false; }
+			//
+			//	Copy the data from our variable to the data buffer
+			std::memcpy(&BinaryData[m_write], &Len, bytes);
+			//
+			//	Advance our write position
+			m_write += bytes;
+			//
+			//	Write the individual characters from our char buffer
+			for (size_t pos = 0; pos < Len; pos++)
+			{
+				BinaryData[m_write + pos] = value[pos];
+			}
+			//
+			//	Advance our write position
+			m_write += Len;
+			return true;
+		}
 	};
 	//
 	//	Recv Packet
 	class NetPacket_Recv : public RIO_BUF {
 	public:
 		OVERLAPPED Overlap;
-		alignas(alignof(std::max_align_t)) char*const DataBuffer;
-		alignas(alignof(std::max_align_t)) char*const BinaryData;
+		alignas(alignof(std::max_align_t)) char* const DataBuffer;
+		alignas(alignof(std::max_align_t)) char* const BinaryData;
 		size_t m_read;
 		bool bRecycle;
 		//
 		//	Packet Header
-		PacketID*const PID;
-		ClientID*const CID;
-		uintmax_t*const Timestamp;
+		PacketID* const PID;
+		ClientID* const CID;
+		uintmax_t* const Timestamp;
 
 	public:
 		PRIO_BUF Address = nullptr;
@@ -139,14 +167,14 @@ namespace KNet {
 			//	Map our packet header variables
 			PID((PacketID*)&BinaryData[0]),
 			CID((ClientID*)&BinaryData[sizeof(PacketID)]),
-			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID)+sizeof(ClientID)]),
+			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID)]),
 			//
 			//	Offset the m_read position by the size of our header
 			m_read(sizeof(PacketID) + sizeof(ClientID) + sizeof(uintmax_t)),
 			bRecycle(false)
-			{
-				Overlap.Pointer = this;
-			}
+		{
+			Overlap.Pointer = this;
+		}
 
 		~NetPacket_Recv() {
 			delete Address;
@@ -206,6 +234,38 @@ namespace KNet {
 			//	Advance our read position
 			m_read += bytes;
 			return true;
+		}
+
+		//
+		//	Specialized
+		template <>	const bool read(char& Var) noexcept {
+			//static_assert(std::is_trivial_v<T>);
+			//
+			//	Get the size of this read
+			constexpr std::size_t bytes = sizeof(size_t);
+			//
+			//	Ensure we don't read past the end of our data buffer
+			if (m_read + bytes >= MAX_PACKET_SIZE) { return false; }
+			//
+			//	Copy the data from the data buffer to our variable
+			size_t charSize;
+			std::memcpy(&charSize, &BinaryData[m_read], bytes);
+			//
+			//	Advance our read position
+			m_read += bytes;
+			printf("CHARSIZE %i\n", charSize);
+			//
+			//	Ensure we don't read past the end of our data buffer
+			if (m_read + charSize >= MAX_PACKET_SIZE) { return false; }
+			//
+			//	Copy the data from the data buffer to our variable
+			strncpy(&Var, &BinaryData[m_read], charSize);
+
+			//std::memcpy(&Var, &BinaryData[m_read], charSize);
+			//
+			//	Advance our read position
+			m_read += charSize;
+			return Var;
 		}
 	};
 }
