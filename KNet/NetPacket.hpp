@@ -128,10 +128,7 @@ namespace KNet {
 			m_write += bytes;
 			//
 			//	Write the individual characters from our char buffer
-			for (size_t pos = 0; pos < Len; pos++)
-			{
-				BinaryData[m_write + pos] = value[pos];
-			}
+			strncpy(&BinaryData[m_write], value, Len);
 			//
 			//	Advance our write position
 			m_write += Len;
@@ -253,15 +250,12 @@ namespace KNet {
 			//
 			//	Advance our read position
 			m_read += bytes;
-			printf("CHARSIZE %i\n", charSize);
 			//
 			//	Ensure we don't read past the end of our data buffer
 			if (m_read + charSize >= MAX_PACKET_SIZE) { return false; }
 			//
 			//	Copy the data from the data buffer to our variable
-			strncpy(&Var, &BinaryData[m_read], charSize);
-
-			//std::memcpy(&Var, &BinaryData[m_read], charSize);
+			strncat(&Var, &BinaryData[m_read], charSize);
 			//
 			//	Advance our read position
 			m_read += charSize;
