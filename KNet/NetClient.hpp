@@ -62,6 +62,7 @@ namespace KNet
 			delete Unreliable_Latest;
 			delete Unreliable_Any;
 			delete[] pEntries;
+			AddressPool->ReturnUsedObject(_ADDR_RECV);
 			CloseHandle(IOCP);
 		}
 
