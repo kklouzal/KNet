@@ -64,6 +64,8 @@ int main()
         }
         //
         //  Check for disconnected clients
+        //  NOTE: The same NetClient can wind up in the Clients_Disconnected deque multiple times.
+        //  Use some external means to identify if they've been cleaned up/marked for cleanup.
         for (auto& _Client : Packets1.Clients_Disconnected)
         {
             printf("DISCONNECT CLIENT\n");
