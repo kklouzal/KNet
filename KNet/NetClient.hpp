@@ -6,7 +6,8 @@ namespace KNet
 	{
 		NetAddress* _ADDR_RECV;
 		std::string _IP_RECV;
-		u_short _PORT_RECV;
+		u_short _PORT_RECV;		//	Port this client receives on
+		u_short _PORT_SEND;		//	Port this client sends on
 		NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>* ACKPacketPool = nullptr;
 		NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>* SendPacketPool = nullptr;
 		//
@@ -36,7 +37,7 @@ namespace KNet
 		//	WARN: may be incorrect port_recv
 		//	TODO: get the recv port from the remote client somehow..
 		NetClient(std::string IP, u_short PORT)
-			: /*OVERLAPPED(),*/ _IP_RECV(IP), _PORT_RECV(PORT + 1),
+			: /*OVERLAPPED(),*/ _IP_RECV(IP), _PORT_RECV(PORT + 1), _PORT_SEND(PORT),
 			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0),
 			Unreliable_Any(new Unreliable_Any_Channel()),
 			Unreliable_Latest(new Unreliable_Latest_Channel()),
@@ -59,7 +60,7 @@ namespace KNet
 			if (IOCP == nullptr) {
 				printf("Create IO Completion Port - Client Error: (%lu)\n", GetLastError());
 			}
-			Pointer = this;
+			Pointer = this; 
 		}
 
 		~NetClient()

@@ -504,7 +504,7 @@ namespace KNet
 					// TODO: THIS SHIT RIGHT HERE DONT WORK FOR SOME FRIGGEN REASON.
 					//NetClient* _Client = static_cast<NetClient*>(pOverlapped->Pointer);
 					//const std::string ID(_Client->_IP_RECV + ":" + std::to_string(_Client->_PORT_RECV));
-					const std::string ID2(static_cast<NetClient*>(pOverlapped->Pointer)->_IP_RECV + ":" + std::to_string(static_cast<NetClient*>(pOverlapped->Pointer)->_PORT_RECV));
+					const std::string ID2(static_cast<NetClient*>(pOverlapped->Pointer)->_IP_RECV + ":" + std::to_string(static_cast<NetClient*>(pOverlapped->Pointer)->_PORT_SEND));
 					//
 					//	If they exist
 					if (Clients.count(ID2))
