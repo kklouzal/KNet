@@ -71,7 +71,6 @@ int main()
             {
                 if (*it == _Client)
                 {
-                    printf("DISCONNECT->Release\n");
                     ConnectedClients.erase(it);
                     Point->ReleaseClient(_Client);
                     break;

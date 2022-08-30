@@ -232,7 +232,6 @@ namespace KNet
 		//	Release a client back to the NetPoint for cleanup and deletion.
 		void ReleaseClient(NetClient* Client)
 		{
-			printf("RELEASE FUNC\n");
 			KN_CHECK_RESULT(PostQueuedCompletionStatus(RecvIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::RecvCompletion::RecvClientDelete), Client), false);
 		}
 
@@ -318,10 +317,10 @@ namespace KNet
 		void Thread_Send() noexcept {
 			printf("Send Thread Started\n");
 			DWORD numberOfBytes = 0;
-			ULONG_PTR completionKey;
+			ULONG_PTR completionKey = 0;
 			OVERLAPPED* pOverlapped = nullptr;
-			RIORESULT Result;
-			ULONG numResults;
+			RIORESULT Result = {};
+			ULONG numResults = 0;
 			while (bRunning.load()) {
 				//
 				//	Wait until we have a send event
@@ -389,10 +388,10 @@ namespace KNet
 			printf("Recv Thread Started\n");
 			DWORD numberOfBytes = 0;
 			ULONG_PTR completionKey = 0;
-			RIORESULT Result;
-			ULONG numResults;
+			OVERLAPPED* pOverlapped = nullptr;
+			RIORESULT Result = {};
+			ULONG numResults = 0;
 			while (bRunning.load()) {
-				OVERLAPPED* pOverlapped = nullptr;
 				//
 				//	Wait until we have a receive event
 				KN_CHECK_RESULT(GetQueuedCompletionStatus(RecvIOCP, &numberOfBytes, &completionKey, &pOverlapped, INFINITE), false);
@@ -496,24 +495,18 @@ namespace KNet
 				//
 				//	Client Delete Operation
 				else if (completionKey == static_cast<ULONG_PTR>(RecvCompletion::RecvClientDelete)) {
-					printf("RECV| Delete\n");
-					
+					NetClient* PassedClient = static_cast<NetClient*>(pOverlapped->Pointer);
 					//
 					//	Formulate the client ID
-					//
-					// TODO: THIS SHIT RIGHT HERE DONT WORK FOR SOME FRIGGEN REASON.
-					//NetClient* _Client = static_cast<NetClient*>(pOverlapped->Pointer);
-					//const std::string ID(_Client->_IP_RECV + ":" + std::to_string(_Client->_PORT_RECV));
-					const std::string ID2(static_cast<NetClient*>(pOverlapped->Pointer)->_IP_RECV + ":" + std::to_string(static_cast<NetClient*>(pOverlapped->Pointer)->_PORT_SEND));
+					const std::string ID(PassedClient->_IP_RECV + ":" + std::to_string(PassedClient->_PORT_SEND));
 					//
 					//	If they exist
-					if (Clients.count(ID2))
+					if (Clients.count(ID))
 					{
-						printf("RECV| Exists\n");
 						//
 						//	Delete and remove them from the Clients container
-						delete Clients[ID2];
-						Clients.erase(ID2);
+						delete Clients[ID];
+						Clients.erase(ID);
 					}
 				}
 				//

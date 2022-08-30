@@ -37,7 +37,7 @@ namespace KNet
 		//	WARN: may be incorrect port_recv
 		//	TODO: get the recv port from the remote client somehow..
 		NetClient(std::string IP, u_short PORT)
-			: /*OVERLAPPED(),*/ _IP_RECV(IP), _PORT_RECV(PORT + 1), _PORT_SEND(PORT),
+			: OVERLAPPED(), _IP_RECV(IP), _PORT_RECV(PORT + 1), _PORT_SEND(PORT),
 			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0),
 			Unreliable_Any(new Unreliable_Any_Channel()),
 			Unreliable_Latest(new Unreliable_Latest_Channel()),
