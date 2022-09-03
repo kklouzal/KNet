@@ -24,12 +24,6 @@ namespace KNet
 		//	NetChannels
 		std::unordered_map<uint8_t, Channel*> Net_Channels;
 		//
-		std::unordered_map<uint8_t, Unreliable_Any_Channel*> Unreliable_Any;
-		//std::unordered_map<uint8_t, Unreliable_Latest_Channel*> Unreliable_Latest;
-		//std::unordered_map<uint8_t, Reliable_Any_Channel*> Reliable_Any;
-		//std::unordered_map<uint8_t, Reliable_Latest_Channel*> Reliable_Latest;
-		//std::unordered_map<uint8_t, Reliable_Ordered_Channel*> Reliable_Ordered;
-		//
 		//	When was our last packet received
 		std::chrono::time_point<std::chrono::steady_clock> LastPacketTime;
 		//
@@ -41,11 +35,6 @@ namespace KNet
 		NetClient(std::string IP, u_short PORT)
 			: OVERLAPPED(), _IP_RECV(IP), _PORT_RECV(PORT + 1), _PORT_SEND(PORT),
 			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0),
-			//Unreliable_Any(new Unreliable_Any_Channel()),
-			//Unreliable_Latest(new Unreliable_Latest_Channel()),
-			//Reliable_Any(new Reliable_Any_Channel()),
-			//Reliable_Latest(new Reliable_Latest_Channel()),
-			//Reliable_Ordered(new Reliable_Ordered_Channel()),
 			LastPacketTime(std::chrono::high_resolution_clock::now()),
 			TimeoutPeriod(30)
 		{
@@ -71,27 +60,6 @@ namespace KNet
 			{
 				delete Channel_.second;
 			}
-			//
-			/*for (auto& Channel_ : Reliable_Ordered)
-			{
-				delete Channel_.second;
-			}
-			for (auto& Channel_ : Reliable_Latest)
-			{
-				delete Channel_.second;
-			}
-			for (auto& Channel_ : Reliable_Any)
-			{
-				delete Channel_.second;
-			}
-			for (auto& Channel_ : Unreliable_Latest)
-			{
-				delete Channel_.second;
-			}
-			for (auto& Channel_ : Unreliable_Any)
-			{
-				delete Channel_.second;
-			}*/
 			delete[] pEntries;
 			AddressPool->ReturnUsedObject(_ADDR_RECV);
 			CloseHandle(IOCP);
@@ -159,50 +127,53 @@ namespace KNet
 				Packet->read<uintmax_t>(UniqueID);
 				Packet->read<uint8_t>(OPID);
 				ChannelID CH_ID = Net_Channels[OPID]->GetChannelID();
-				if (CH_ID == ChannelID::Reliable_Any) {
-					NetPacket_Send* AcknowledgedPacket = static_cast<Reliable_Any_Channel*>(Net_Channels[OPID])->TryACK(UniqueID);
-					//
-					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
-					if (AcknowledgedPacket) {
-						const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
-						const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
-						printf("\tRecv_ANY_ACK\t\tPID:%u UID:%ju ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
-						//printf("Return ANY Packet From ACK InternalID %i InternalUniqueID %i\n", AcknowledgedPacket->InternalID, AcknowledgedPacket->InternalUniqueID);
-						ReturnPacket(AcknowledgedPacket);
+				switch (CH_ID)
+				{
+					case ChannelID::Reliable_Any:
+					{
+						NetPacket_Send* AcknowledgedPacket = static_cast<Reliable_Any_Channel*>(Net_Channels[OPID])->TryACK(UniqueID);
+						//
+						//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
+						if (AcknowledgedPacket) {
+							const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
+							const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
+							printf("\tRecv_ANY_ACK\t\tPID:%u UID:%ju ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
+							ReturnPacket(AcknowledgedPacket);
+						}
 					}
-				}
-				else if (CH_ID == ChannelID::Reliable_Latest) {
-					NetPacket_Send* AcknowledgedPacket = static_cast<Reliable_Latest_Channel*>(Net_Channels[OPID])->TryACK(UniqueID);
-					//
-					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
-					if (AcknowledgedPacket) {
-						const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
-						const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
-						printf("\tRecv_LATEST_ACK\t\tPID:%u UID:%ju ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
-						//printf("Return LATEST Packet From ACK InternalID %i InternalUniqueID %i\n", AcknowledgedPacket->InternalID, AcknowledgedPacket->InternalUniqueID);
-						ReturnPacket(AcknowledgedPacket);
+					break;
+					case ChannelID::Reliable_Latest:
+					{
+						NetPacket_Send* AcknowledgedPacket = static_cast<Reliable_Latest_Channel*>(Net_Channels[OPID])->TryACK(UniqueID);
+						//
+						//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
+						if (AcknowledgedPacket) {
+							const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
+							const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
+							printf("\tRecv_LATEST_ACK\t\tPID:%u UID:%ju ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
+							ReturnPacket(AcknowledgedPacket);
+						}
 					}
-				}
-				else if (CH_ID == ChannelID::Reliable_Ordered) {
-					NetPacket_Send* AcknowledgedPacket = static_cast<Reliable_Ordered_Channel*>(Net_Channels[OPID])->TryACK(UniqueID);
-					//
-					//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
-					if (AcknowledgedPacket) {
-						const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
-						const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
-						printf("\tRecv_ORDERED_ACK\tPID:%u UID:%ju ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
-						//printf("Return ORDERED Packet From ACK InternalID %i InternalUniqueID %i\n", AcknowledgedPacket->InternalID, AcknowledgedPacket->InternalUniqueID);
-						ReturnPacket(AcknowledgedPacket);
+					break;
+					case ChannelID::Reliable_Ordered:
+					{
+						NetPacket_Send* AcknowledgedPacket = static_cast<Reliable_Ordered_Channel*>(Net_Channels[OPID])->TryACK(UniqueID);
+						//
+						//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
+						if (AcknowledgedPacket) {
+							const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
+							const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
+							printf("\tRecv_ORDERED_ACK\tPID:%u UID:%ju ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
+							ReturnPacket(AcknowledgedPacket);
+						}
 					}
+					break;
 				}
 			}
 		}
 
 		inline NetPacket_Send* ProcessPacket_Handshake(NetPacket_Recv* Packet) noexcept
 		{
-			//
-			//	Push the received packet into this client
-			//KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &Packet->Overlap), false);
 			//
 			//	Formulate an acknowledgement
 			NetPacket_Send* ACK = ACKPacketPool->GetFreeObject();
@@ -213,7 +184,6 @@ namespace KNet
 				ACK->SetCID(ClientID::Client);
 				ACK->SetTimestamp(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 				ACK->write<PacketID>(PacketID::Handshake);
-				//	TODO: add more data..like actual packet ids
 			}
 			//
 			//	Return the acknowledgement to be sent from the calling NetPoint
@@ -222,10 +192,10 @@ namespace KNet
 
 		inline NetPacket_Send* ProcessPacket_Data(NetPacket_Recv* Packet)
 		{
-			ChannelID CHID;
-			Packet->read<ChannelID>(CHID);
+			uint8_t OPID = Packet->GetOID();
+			ChannelID CH_ID = Net_Channels[OPID]->GetChannelID();
 
-			if (CHID == ChannelID::Unreliable_Any)
+			if (CH_ID == ChannelID::Unreliable_Any)
 			{
 				//
 				//	Push the received packet into this client
@@ -235,10 +205,8 @@ namespace KNet
 
 			uintmax_t UniqueID;
 			Packet->read<uintmax_t>(UniqueID);
-			uint8_t OPID = Packet->GetOID();
-			//Packet->read<uint8_t>(OPID);
 
-			if (CHID == ChannelID::Unreliable_Latest)
+			if (CH_ID == ChannelID::Unreliable_Latest)
 			{
 				if (static_cast<Unreliable_Latest_Channel*>(Net_Channels[OPID])->TryReceive(Packet, UniqueID))
 				{
@@ -260,34 +228,39 @@ namespace KNet
 				ACK->write<PacketID>(PacketID::Data);
 				ACK->write<uintmax_t>(UniqueID);
 				ACK->write<uint8_t>(OPID);
-				//	TODO: add more data..?
 			}
-			if (CHID == ChannelID::Reliable_Any)
+			switch (CH_ID)
 			{
-				//
-				//	Push the received packet into this client
-				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &Packet->Overlap), false);
-
-			}
-			else if (CHID == ChannelID::Reliable_Latest)
-			{
-				//
-				//	LATEST class packets only process new uniqueIDs
-				if (static_cast<Reliable_Latest_Channel*>(Net_Channels[OPID])->TryReceive(Packet, UniqueID))
+				case ChannelID::Reliable_Any:
 				{
 					//
 					//	Push the received packet into this client
 					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &Packet->Overlap), false);
+
 				}
-			}
-			else if (CHID == ChannelID::Reliable_Ordered)
-			{
-				//
-				//	Loop through any packets returned and give them to this client
-				for (auto _Packet : static_cast<Reliable_Ordered_Channel*>(Net_Channels[OPID])->TryReceive(Packet, UniqueID))
+				break;
+				case ChannelID::Reliable_Latest:
 				{
-					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &_Packet->Overlap), false);
+					//
+					//	LATEST class packets only process new uniqueIDs
+					if (static_cast<Reliable_Latest_Channel*>(Net_Channels[OPID])->TryReceive(Packet, UniqueID))
+					{
+						//
+						//	Push the received packet into this client
+						KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &Packet->Overlap), false);
+					}
 				}
+				break;
+				case ChannelID::Reliable_Ordered:
+				{
+					//
+					//	Loop through any packets returned and give them to this client
+					for (auto _Packet : static_cast<Reliable_Ordered_Channel*>(Net_Channels[OPID])->TryReceive(Packet, UniqueID))
+					{
+						KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &_Packet->Overlap), false);
+					}
+				}
+				break;
 			}
 			//
 			//	Return the acknowledgement to be sent from the calling NetPoint
@@ -296,15 +269,10 @@ namespace KNet
 
 		void ReturnPacket(NetPacket_Send* Packet) noexcept
 		{
-			
-			if (Packet->GetPID() == PacketID::Acknowledgement)
-			{
-				//printf("->ReturnACK\n");
+			if (Packet->GetPID() == PacketID::Acknowledgement) {
 				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::ReleaseACK), &Packet->Overlap), false);
 			}
-			else
-			{
-				//printf("->ReturnSEND\n");
+			else {
 				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::ReleaseSEND), &Packet->Overlap), false);
 			}
 		}
@@ -323,14 +291,23 @@ namespace KNet
 			for (unsigned int i = 0; i < pEntriesCount; i++) {
 				//
 				//	Release Send Packet Operation
-				if (pEntries[i].lpCompletionKey == static_cast<ULONG_PTR>(Completions::RecvUnread)) {
-					_Packets.push_back(static_cast<NetPacket_Recv*>(pEntries[i].lpOverlapped->Pointer));
-				}
-				else if (pEntries[i].lpCompletionKey == static_cast<ULONG_PTR>(Completions::ReleaseACK)) {
-					ACKPacketPool->ReturnUsedObject(static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
-				}
-				else if (pEntries[i].lpCompletionKey == static_cast<ULONG_PTR>(Completions::ReleaseSEND)) {
-					SendPacketPool->ReturnUsedObject(static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
+				switch (pEntries[i].lpCompletionKey)
+				{
+					case static_cast<ULONG_PTR>(Completions::RecvUnread):
+					{
+						_Packets.push_back(static_cast<NetPacket_Recv*>(pEntries[i].lpOverlapped->Pointer));
+					}
+					break;
+					case static_cast<ULONG_PTR>(Completions::ReleaseACK):
+					{
+						ACKPacketPool->ReturnUsedObject(static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
+					}
+					break;
+					case static_cast<ULONG_PTR>(Completions::ReleaseSEND):
+					{
+						SendPacketPool->ReturnUsedObject(static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
+					}
+					break;
 				}
 			}
 			return _Packets;

@@ -11,7 +11,6 @@ namespace KNet
 		inline void StampPacket(NetPacket_Send* Packet) noexcept
 		{
 			Packet->bDontRelease = false;					//	Doesn't need ACK
-			Packet->write<ChannelID>(GetChannelID());	//	Write the ChannelID
 		}
 	};
 }

@@ -17,7 +17,6 @@ namespace KNet
 		inline void StampPacket(NetPacket_Send* Packet)
 		{
 			const uintmax_t UniqueID = OUT_NextID++;			//	Store and increment our UniqueID
-			Packet->write<ChannelID>(GetChannelID());		//	Write the ChannelID
 			Packet->write<uintmax_t>(UniqueID);			//	Write the UniqueID
 			//
 			//	WARN: The packet could potentially gets sent before the user intends to send it..
