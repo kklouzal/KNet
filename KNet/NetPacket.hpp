@@ -11,8 +11,9 @@ namespace KNet {
 		size_t m_write;
 		//
 		//	Packet Header
-		PacketID* const PID;
-		ClientID* const CID;
+		PacketID* const PID;	//	PacketID
+		ClientID* const CID;	//	ClientID
+		uint8_t* const OID;		//	OperationID
 		uintmax_t* const Timestamp;
 
 	public:
@@ -29,10 +30,11 @@ namespace KNet {
 			//	Map our packet header variables
 			PID((PacketID*)&BinaryData[0]),
 			CID((ClientID*)&BinaryData[sizeof(PacketID)]),
-			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID)]),
+			OID((uint8_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID)]),
+			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t)]),
 			//
 			//	Offset the m_write position by the size of our header
-			m_write(sizeof(PacketID) + sizeof(ClientID) + sizeof(uintmax_t)),
+			m_write(sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t)),
 			//
 			bDontRelease(false)
 		{
@@ -51,7 +53,7 @@ namespace KNet {
 			//}
 
 			ZSTD_compressCCtx(cctx, &DataBuffer[Offset], MAX_PACKET_SIZE, BinaryData, m_write, 1);
-			m_write = sizeof(PacketID) + sizeof(ClientID) + sizeof(uintmax_t);
+			m_write = sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t);
 		}
 
 		//	TODO: Handle multiple destinations using vector of addresses:
@@ -78,6 +80,16 @@ namespace KNet {
 		ClientID GetCID() noexcept
 		{
 			return *CID;
+		}
+
+		void SetOID(uint8_t ID) noexcept
+		{
+			std::memcpy(OID, &ID, sizeof(uint8_t));
+		}
+
+		uint8_t GetOID() noexcept
+		{
+			return *OID;
 		}
 
 		void SetTimestamp(uintmax_t TS) noexcept
@@ -148,6 +160,7 @@ namespace KNet {
 		//	Packet Header
 		PacketID* const PID;
 		ClientID* const CID;
+		uint8_t* const OID;
 		uintmax_t* const Timestamp;
 
 	public:
@@ -164,10 +177,11 @@ namespace KNet {
 			//	Map our packet header variables
 			PID((PacketID*)&BinaryData[0]),
 			CID((ClientID*)&BinaryData[sizeof(PacketID)]),
-			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID)]),
+			OID((uint8_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID)]),
+			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t)]),
 			//
 			//	Offset the m_read position by the size of our header
-			m_read(sizeof(PacketID) + sizeof(ClientID) + sizeof(uintmax_t)),
+			m_read(sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t)),
 			bRecycle(false)
 		{
 			Overlap.Pointer = this;
@@ -189,7 +203,7 @@ namespace KNet {
 				//printf("DECOMPRESS ERROR\n");
 			//}
 			ZSTD_decompressDCtx(dctx, &BinaryData[0], MAX_PACKET_SIZE, &DataBuffer[Offset], Size);
-			m_read = sizeof(PacketID) + sizeof(ClientID) + sizeof(uintmax_t);
+			m_read = sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t);
 			bRecycle = false;
 		}
 
@@ -206,6 +220,11 @@ namespace KNet {
 		ClientID GetCID() noexcept
 		{
 			return *CID;
+		}
+
+		uint8_t GetOID() noexcept
+		{
+			return *OID;
 		}
 
 		uintmax_t GetTimestamp() noexcept

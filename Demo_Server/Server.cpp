@@ -39,6 +39,13 @@ int main()
         for (auto _Client : Packets1.Clients_Connected)
         {
             ConnectedClients.push_back(_Client);
+            //
+            //  Register your custom Operation IDs
+            _Client->RegisterChannel<KNet::ChannelID::Unreliable_Any>(0);
+            _Client->RegisterChannel<KNet::ChannelID::Unreliable_Latest>(1);
+            _Client->RegisterChannel<KNet::ChannelID::Reliable_Any>(2);
+            _Client->RegisterChannel<KNet::ChannelID::Reliable_Latest>(3);
+            _Client->RegisterChannel<KNet::ChannelID::Reliable_Ordered>(4);
             printf("HANDLE NEW CLIENT\n");
         }
         //

@@ -49,6 +49,9 @@
     <ClInclude Include="NetChannel_Ordered.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NetChannel.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="KNet.cpp">

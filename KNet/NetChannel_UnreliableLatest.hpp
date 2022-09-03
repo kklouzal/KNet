@@ -2,7 +2,7 @@
 
 namespace KNet
 {
-	class Unreliable_Latest_Channel
+	class Unreliable_Latest_Channel : public Channel
 	{
 		//
 		//	Record the UniqueID of our most recent incoming packet and the UniqueID of our next outgoing packet
@@ -10,14 +10,14 @@ namespace KNet
 		std::atomic<uintmax_t> OUT_NextID = 1;	//	Outgoing UniqueID
 
 	public:
-		inline Unreliable_Latest_Channel() noexcept {}
+		inline Unreliable_Latest_Channel(uint8_t OPID) noexcept : Channel(ChannelID::Unreliable_Latest, OPID) {}
 
 		//	Initialize and return a new packet for sending
 		inline void StampPacket(NetPacket_Send* Packet) noexcept
 		{
-			Packet->bDontRelease = false;	//	Doesn't need ACK
-			Packet->write<ChannelID>(ChannelID::Unreliable_Latest);	//	Write the ChannelID
-			Packet->write<uintmax_t>(OUT_NextID++);					//	Write and increment the current UniqueID
+			Packet->bDontRelease = false;						//	Doesn't need ACK
+			Packet->write<ChannelID>(GetChannelID());		//	Write the ChannelID
+			Packet->write<uintmax_t>(OUT_NextID++);		//	Write and increment the current UniqueID
 		}
 
 		//	Receives a packet
