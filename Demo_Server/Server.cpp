@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <KNet.hpp>
 
 int main()
@@ -27,7 +28,7 @@ int main()
         //
         //  Get any received out-of-band packets
         const auto Packets1 = Point->GetPackets();
-        for (auto _Packet : Packets1.first)
+        for (auto _Packet : Packets1.Packets)
         {
             //
             //  Release our packet when we're done with it
@@ -35,7 +36,7 @@ int main()
         }
         //
         //  Check for new clients
-        for (auto _Client : Packets1.second)
+        for (auto _Client : Packets1.Clients_Connected)
         {
             ConnectedClients.push_back(_Client);
             printf("HANDLE NEW CLIENT\n");
@@ -61,6 +62,26 @@ int main()
                 Point->ReleasePacket(_Packet);
             }
         }
+        //
+        //  Check for disconnected clients
+        //  NOTE: The same NetClient can wind up in the Clients_Disconnected deque multiple times.
+        //  Use some external means to identify if they've been cleaned up/marked for cleanup.
+        for (auto& _Client : Packets1.Clients_Disconnected)
+        {
+            printf("DISCONNECT CLIENT\n");
+            for (std::deque<KNet::NetClient*>::iterator it = ConnectedClients.begin(); it != ConnectedClients.end();)
+            {
+                if (*it == _Client)
+                {
+                    ConnectedClients.erase(it);
+                    Point->ReleaseClient(_Client);
+                    break;
+                }
+            }
+        }
+        //
+        //  Run a Timeout Check
+        Point->CheckForTimeouts();
         Sleep(1);
     }
 

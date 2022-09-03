@@ -2,11 +2,12 @@
 
 namespace KNet
 {
-	class NetClient : private OVERLAPPED
+	class NetClient : public OVERLAPPED
 	{
 		NetAddress* _ADDR_RECV;
 		std::string _IP_RECV;
-		u_short _PORT_RECV;
+		u_short _PORT_RECV;		//	Port this client receives on
+		u_short _PORT_SEND;		//	Port this client sends on
 		NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>* ACKPacketPool = nullptr;
 		NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>* SendPacketPool = nullptr;
 		//
@@ -26,18 +27,25 @@ namespace KNet
 		Reliable_Any_Channel* Reliable_Any;
 		Reliable_Latest_Channel* Reliable_Latest;
 		Reliable_Ordered_Channel* Reliable_Ordered;
+		//
+		//	When was our last packet received
+		std::chrono::time_point<std::chrono::steady_clock> LastPacketTime;
+		//
+		//	Timeout Period in seconds
+		std::chrono::seconds TimeoutPeriod;
 	public:
-
 		//	WARN: may be incorrect port_recv
 		//	TODO: get the recv port from the remote client somehow..
 		NetClient(std::string IP, u_short PORT)
-			: OVERLAPPED(), _IP_RECV(IP), _PORT_RECV(PORT + 1),
+			: OVERLAPPED(), _IP_RECV(IP), _PORT_RECV(PORT + 1), _PORT_SEND(PORT),
 			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0),
 			Unreliable_Any(new Unreliable_Any_Channel()),
 			Unreliable_Latest(new Unreliable_Latest_Channel()),
 			Reliable_Any(new Reliable_Any_Channel()),
 			Reliable_Latest(new Reliable_Latest_Channel()),
-			Reliable_Ordered(new Reliable_Ordered_Channel())
+			Reliable_Ordered(new Reliable_Ordered_Channel()),
+			LastPacketTime(std::chrono::high_resolution_clock::now()),
+			TimeoutPeriod(10)
 		{
 			//	WARN: can run out of free objects
 			//	TODO: find another way to store the address in this object..
@@ -52,6 +60,7 @@ namespace KNet
 			if (IOCP == nullptr) {
 				printf("Create IO Completion Port - Client Error: (%lu)\n", GetLastError());
 			}
+			Pointer = this; 
 		}
 
 		~NetClient()
@@ -64,6 +73,7 @@ namespace KNet
 			delete[] pEntries;
 			AddressPool->ReturnUsedObject(_ADDR_RECV);
 			CloseHandle(IOCP);
+			printf("DELETE THE CLIENT\n");
 		}
 
 		template <ChannelID CHID> NetPacket_Send* GetFreePacket()
