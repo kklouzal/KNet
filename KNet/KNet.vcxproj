@@ -153,6 +153,7 @@
     <ClInclude Include="ErrorHandling.hpp" />
     <ClInclude Include="KNet.hpp" />
     <ClInclude Include="NetAddress.hpp" />
+    <ClInclude Include="NetChannel.hpp" />
     <ClInclude Include="NetChannel_Ordered.hpp" />
     <ClInclude Include="NetChannel_ReliableAny.hpp" />
     <ClInclude Include="NetChannel_ReliableLatest.hpp" />

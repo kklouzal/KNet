@@ -87,11 +87,7 @@ namespace KNet
 	class NetPoint;
 }
 //
-#include "NetChannel_UnreliableAny.hpp"
-#include "NetChannel_UnreliableLatest.hpp"
-#include "NetChannel_ReliableAny.hpp"
-#include "NetChannel_ReliableLatest.hpp"
-#include "NetChannel_Ordered.hpp"
+#include "NetChannel.hpp"
 //
 #include "NetClient.hpp"
 #include "NetServer.hpp"
