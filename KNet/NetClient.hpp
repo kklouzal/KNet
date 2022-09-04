@@ -127,47 +127,12 @@ namespace KNet
 				Packet->read<uintmax_t>(UniqueID);
 				Packet->read<uint8_t>(OPID);
 				ChannelID CH_ID = Net_Channels[OPID]->GetChannelID();
-				switch (CH_ID)
-				{
-					case ChannelID::Reliable_Any:
-					{
-						NetPacket_Send* AcknowledgedPacket = static_cast<Reliable_Any_Channel*>(Net_Channels[OPID])->TryACK(UniqueID);
-						//
-						//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
-						if (AcknowledgedPacket) {
-							const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
-							const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
-							printf("\tRecv_ANY_ACK\t\tPID:%u UID:%ju ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
-							ReturnPacket(AcknowledgedPacket);
-						}
-					}
-					break;
-					case ChannelID::Reliable_Latest:
-					{
-						NetPacket_Send* AcknowledgedPacket = static_cast<Reliable_Latest_Channel*>(Net_Channels[OPID])->TryACK(UniqueID);
-						//
-						//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
-						if (AcknowledgedPacket) {
-							const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
-							const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
-							printf("\tRecv_LATEST_ACK\t\tPID:%u UID:%ju ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
-							ReturnPacket(AcknowledgedPacket);
-						}
-					}
-					break;
-					case ChannelID::Reliable_Ordered:
-					{
-						NetPacket_Send* AcknowledgedPacket = static_cast<Reliable_Ordered_Channel*>(Net_Channels[OPID])->TryACK(UniqueID);
-						//
-						//	If a packet was acknowledged, return it to the main thread to be placed back in its available packet pool
-						if (AcknowledgedPacket) {
-							const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
-							const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
-							printf("\tRecv_ORDERED_ACK\tPID:%u UID:%ju ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
-							ReturnPacket(AcknowledgedPacket);
-						}
-					}
-					break;
+				NetPacket_Send* AcknowledgedPacket = Net_Channels[OPID]->TryACK(UniqueID);
+				if (AcknowledgedPacket) {
+					const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
+					const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
+					printf("\tRecv_ACK\tPID:%u UID:%ju OPID:%i ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, OPID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
+					ReturnPacket(AcknowledgedPacket);
 				}
 			}
 		}
