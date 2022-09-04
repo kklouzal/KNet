@@ -24,6 +24,7 @@ namespace KNet
 			return Operation_ID;
 		}
 
+		virtual NetPacket_Send* TryACK(const uintmax_t& UniqueID) { return nullptr; }
 		virtual void StampPacket(NetPacket_Send* Packet) = 0;
 	};
 }

@@ -59,11 +59,11 @@ int main()
             {
                 //
                 //  Read out the data we sent
-                const char* Dat;
-                if (_Packet->read<const char*>(Dat))
-                {
-                    //printf("%s\n", Dat);
-                }
+                //const char* Dat;
+                //if (_Packet->read<const char*>(Dat))
+                //{
+                //    printf("%s\n", Dat);
+                //}
                 //
                 //  Release our packet when we're done with it
                 Point->ReleasePacket(_Packet);
