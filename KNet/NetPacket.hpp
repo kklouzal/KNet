@@ -98,7 +98,7 @@ namespace KNet {
 
 		void SetUID(uintmax_t ID) noexcept
 		{
-			std::memcpy(UID, &ID, sizeof(uint8_t));
+			std::memcpy(UID, &ID, sizeof(uintmax_t));
 		}
 
 		uintmax_t GetUID() noexcept
