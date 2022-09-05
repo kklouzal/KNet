@@ -15,8 +15,8 @@ namespace KNet
 		//	Initialize and return a new packet for sending
 		inline void StampPacket(NetPacket_Send* Packet) noexcept
 		{
-			Packet->bDontRelease = false;						//	Doesn't need ACK
-			Packet->write<uintmax_t>(OUT_NextID++);		//	Write and increment the current UniqueID
+			Packet->bDontRelease = false;	//	Doesn't need ACK
+			Packet->SetUID(OUT_NextID++);	//	Write and increment the current UniqueID
 		}
 
 		//	Receives a packet

@@ -16,13 +16,13 @@ namespace KNet
 		//	Initialize and return a new packet for sending
 		inline void StampPacket(NetPacket_Send* Packet)
 		{
-			const uintmax_t UniqueID = OUT_NextID++;			//	Store and increment our UniqueID
-			Packet->write<uintmax_t>(UniqueID);			//	Write the UniqueID
+			const uintmax_t UniqueID = OUT_NextID++;	//	Store and increment our UniqueID
+			Packet->SetUID(UniqueID);					//	Write the UniqueID
 			//
 			//	WARN: The packet could potentially gets sent before the user intends to send it..
 			//	TODO: Store the OUT_Packet during Point->SendPacket()..
-			Packet->bDontRelease = true;						//	Needs to wait for an ACK
-			OUT_Packets[UniqueID] = Packet;						//	Store this packet until it gets ACK'd
+			Packet->bDontRelease = true;				//	Needs to wait for an ACK
+			OUT_Packets[UniqueID] = Packet;				//	Store this packet until it gets ACK'd
 		}
 
 		inline NetPacket_Send* TryACK(const uintmax_t& UniqueID)

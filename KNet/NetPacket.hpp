@@ -4,6 +4,7 @@ namespace KNet {
 	//
 	//	Send Packet
 	class NetPacket_Send : public RIO_BUF {
+		size_t m_StartPos;
 	public:
 		OVERLAPPED Overlap;
 		alignas(alignof(std::max_align_t)) char* const DataBuffer;
@@ -14,6 +15,7 @@ namespace KNet {
 		PacketID* const PID;	//	PacketID
 		ClientID* const CID;	//	ClientID
 		uint8_t* const OID;		//	OperationID
+		uintmax_t* const UID;	//	UniqueID
 		uintmax_t* const Timestamp;
 
 	public:
@@ -31,10 +33,12 @@ namespace KNet {
 			PID((PacketID*)&BinaryData[0]),
 			CID((ClientID*)&BinaryData[sizeof(PacketID)]),
 			OID((uint8_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID)]),
-			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t)]),
+			UID((uintmax_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t)]),
+			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t)]),
 			//
 			//	Offset the m_write position by the size of our header
-			m_write(sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t)),
+			m_write(sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t) + sizeof(uintmax_t)),
+			m_StartPos(sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t) + sizeof(uintmax_t)),
 			//
 			bDontRelease(false)
 		{
@@ -53,7 +57,7 @@ namespace KNet {
 			//}
 
 			ZSTD_compressCCtx(cctx, &DataBuffer[Offset], MAX_PACKET_SIZE, BinaryData, m_write, 1);
-			m_write = sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t);
+			m_write = m_StartPos;
 		}
 
 		//	TODO: Handle multiple destinations using vector of addresses:
@@ -90,6 +94,16 @@ namespace KNet {
 		uint8_t GetOID() noexcept
 		{
 			return *OID;
+		}
+
+		void SetUID(uintmax_t ID) noexcept
+		{
+			std::memcpy(UID, &ID, sizeof(uint8_t));
+		}
+
+		uintmax_t GetUID() noexcept
+		{
+			return *UID;
 		}
 
 		void SetTimestamp(uintmax_t TS) noexcept
@@ -150,6 +164,7 @@ namespace KNet {
 	//
 	//	Recv Packet
 	class NetPacket_Recv : public RIO_BUF {
+		size_t m_StartPos;
 	public:
 		OVERLAPPED Overlap;
 		alignas(alignof(std::max_align_t)) char* const DataBuffer;
@@ -161,6 +176,7 @@ namespace KNet {
 		PacketID* const PID;
 		ClientID* const CID;
 		uint8_t* const OID;
+		uintmax_t* const UID;
 		uintmax_t* const Timestamp;
 
 	public:
@@ -178,10 +194,13 @@ namespace KNet {
 			PID((PacketID*)&BinaryData[0]),
 			CID((ClientID*)&BinaryData[sizeof(PacketID)]),
 			OID((uint8_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID)]),
-			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t)]),
+			UID((uintmax_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t)]),
+			Timestamp((uintmax_t*)&BinaryData[sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t)]),
 			//
 			//	Offset the m_read position by the size of our header
-			m_read(sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t)),
+			m_read(sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t) + sizeof(uintmax_t)),
+			m_StartPos(sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t) + sizeof(uintmax_t)),
+			//
 			bRecycle(false)
 		{
 			Overlap.Pointer = this;
@@ -203,7 +222,7 @@ namespace KNet {
 				//printf("DECOMPRESS ERROR\n");
 			//}
 			ZSTD_decompressDCtx(dctx, &BinaryData[0], MAX_PACKET_SIZE, &DataBuffer[Offset], Size);
-			m_read = sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t);
+			m_read = m_StartPos;
 			bRecycle = false;
 		}
 
@@ -225,6 +244,11 @@ namespace KNet {
 		uint8_t GetOID() noexcept
 		{
 			return *OID;
+		}
+
+		uintmax_t GetUID() noexcept
+		{
+			return *UID;
 		}
 
 		uintmax_t GetTimestamp() noexcept

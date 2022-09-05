@@ -116,16 +116,10 @@ namespace KNet
 		{
 			PacketID PID;
 			Packet->read<PacketID>(PID);
-			if (PID == PacketID::Handshake)
+			if (PID == PacketID::Data)
 			{
-				//printf("\tRecv_Handshake_ACK %fms\n", ms.count() * 0.001f);
-			}
-			else if (PID == PacketID::Data)
-			{
-				uintmax_t UniqueID;
-				uint8_t OPID;
-				Packet->read<uintmax_t>(UniqueID);
-				Packet->read<uint8_t>(OPID);
+				uint8_t OPID = Packet->GetOID();
+				uintmax_t UniqueID = Packet->GetUID();
 				ChannelID CH_ID = Net_Channels[OPID]->GetChannelID();
 				NetPacket_Send* AcknowledgedPacket = Net_Channels[OPID]->TryACK(UniqueID);
 				if (AcknowledgedPacket) {
@@ -134,6 +128,10 @@ namespace KNet
 					printf("\tRecv_ACK\tPID:%u UID:%ju OPID:%i ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, OPID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
 					ReturnPacket(AcknowledgedPacket);
 				}
+			}
+			else if (PID == PacketID::Handshake)
+			{
+				//printf("\tRecv_Handshake_ACK %fms\n", ms.count() * 0.001f);
 			}
 		}
 
@@ -168,8 +166,7 @@ namespace KNet
 				return nullptr;
 			}
 
-			uintmax_t UniqueID;
-			Packet->read<uintmax_t>(UniqueID);
+			uintmax_t UniqueID = Packet->GetUID();
 
 			if (CH_ID == ChannelID::Unreliable_Latest)
 			{
@@ -190,9 +187,11 @@ namespace KNet
 				ACK->SetPID(PacketID::Acknowledgement);
 				ACK->SetCID(ClientID::Client);
 				ACK->SetTimestamp(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+				//
+				//	Values to acknowledge
+				ACK->SetOID(OPID);
+				ACK->SetUID(UniqueID);
 				ACK->write<PacketID>(PacketID::Data);
-				ACK->write<uintmax_t>(UniqueID);
-				ACK->write<uint8_t>(OPID);
 			}
 			switch (CH_ID)
 			{
