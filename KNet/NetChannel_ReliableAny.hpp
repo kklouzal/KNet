@@ -39,5 +39,24 @@ namespace KNet
 			//	No waiting packet, return nullptr
 			return nullptr;
 		}
+
+		inline std::deque<NetPacket_Send*> GetUnacknowledgedPackets(std::chrono::time_point<std::chrono::steady_clock> TimeThreshold)
+		{
+			uintmax_t TimeThreshold_ = TimeThreshold.time_since_epoch().count();
+			std::deque<NetPacket_Send*> Packets;
+			for (auto& WaitingPackets : OUT_Packets)
+			{
+				if (WaitingPackets.second->GetTimestamp() <= TimeThreshold_)
+				{
+					//
+					//	Reset our timestamp
+					WaitingPackets.second->SetTimestamp(TimeThreshold_);
+					//
+					//	Add it into our packet deque
+					Packets.push_back(WaitingPackets.second);
+				}
+			}
+			return Packets;
+		}
 	};
 }

@@ -55,6 +55,7 @@ namespace KNet
 			ProcSend,
 			ProcRecv,
 			ProcTimeouts,
+			ProcUnacknowledged,
 			ProcReleaseClient,
 			ProcShutdown
 		};
@@ -255,11 +256,16 @@ namespace KNet
 
 		//
 		//	Check for client timeouts
-		//	NOTE:	This operation is performed inside the Receive Thread
-		//			And loops through all clients, don't run it too often.
 		void CheckForTimeouts()
 		{
 			KN_CHECK_RESULT(PostQueuedCompletionStatus(ProcIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::ProcCompletion::ProcTimeouts), NULL), false);
+		}
+
+		//
+		//	Check for packet resends
+		void CheckForResends()
+		{
+			KN_CHECK_RESULT(PostQueuedCompletionStatus(ProcIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::ProcCompletion::ProcUnacknowledged), NULL), false);
 		}
 
 		void SendPacket(NetPacket_Send* Packet) noexcept {
@@ -355,121 +361,159 @@ namespace KNet
 				//
 				//	Wait until we have a proc event
 				KN_CHECK_RESULT(GetQueuedCompletionStatus(ProcIOCP, &numberOfBytes, &completionKey, &pOverlapped, INFINITE), false);
-				//
-				//	Process Send Packet Operation
-				if (completionKey == static_cast<ULONG_PTR>(ProcCompletion::ProcSend)) {
-					NetPacket_Send* Packet = static_cast<NetPacket_Send*>(pOverlapped->Pointer);
-					std::string CLID = Packet->GetClientID();
-					if (Clients.count(CLID))
-					{
-						NetClient* Client = Clients[CLID];
-						Client->Net_Channels[Packet->GetOID()]->StampPacket(Packet);
-					}
-					//
-					//	No client, initial handshake.
-					KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), pOverlapped), false);
-				}
-				//
-				//	Process Receive Packet Operation
-				else if (completionKey == static_cast<ULONG_PTR>(ProcCompletion::ProcRecv)) {
-					NetPacket_Recv* Packet = static_cast<NetPacket_Recv*>(pOverlapped->Pointer);
-					//
-					//	Try to read Packet Header
-					const PacketID OpID = Packet->GetPID();
-					const ClientID ClID = Packet->GetCID();
-					//
-					//	Grab the source address information
-					const SOCKADDR_INET* Source = Packet->GetAddress();
-					const std::string IP(inet_ntoa(Source->Ipv4.sin_addr));
-					const u_short PORT = ntohs(Source->Ipv4.sin_port);
-					const std::string ID(IP + ":" + std::to_string(PORT));
-					Packet->SetClientID(ID);
-					//
-					//	Client logic
-					if (ClID == ClientID::Client)
-					{
-						//
-						//	Create a new NetClient if one does not already exist
-						if (!Clients.count(ID))
-						{
-							Clients.emplace(ID, new NetClient(IP, PORT));
-							KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::ClientConnected), Clients[ID]), false);
-						}
-						//
-						//	Grab our NetClient object
-						NetClient* _Client = Clients[ID];
-						_Client->LastPacketTime = std::chrono::high_resolution_clock::now();
-						if (OpID == PacketID::Acknowledgement) {
-							_Client->ProcessPacket_Acknowledgement(Packet);
-							Packet->bRecycle = true;	//	Recycle the incoming ACK packet
-						}
-						else if (OpID == PacketID::Handshake) {
-							SendPacket(_Client->ProcessPacket_Handshake(Packet));
-							Packet->bRecycle = true;	//	Recycle the incoming handshake packet
-						}
-						else if (OpID == PacketID::Data) {
-							SendPacket(_Client->ProcessPacket_Data(Packet));
-						}
-					}
-					//
-					//	TODO: Server logic
-					else if (ClID == ClientID::Server)
-					{
-						if (Servers.count(ID))
-						{
-							const NetServer* _Server = Servers[ID];
-						}
-						else {
-							Servers[ID] = new NetServer(IP, PORT);
-							printf("\tNew Server\n");
-						}
-					}
-					//
-					//	OutOfBand logic
-					else if (ClID == ClientID::OutOfBand) {
-						printf("RECV OOB\n");
-						//
-						//	Hand the packet over to the main thread for user processing
-						KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::RecvUnread), pOverlapped), false);
-					}
-					//
-					//	Immediately recycle the packet by using it to queue up a new receive operation
-					if (Packet->bRecycle) {
-						KN_CHECK_RESULT(PostQueuedCompletionStatus(RecvIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::RecvCompletion::RecvRelease), pOverlapped), false);
-					}
-				}
-				//
-				//	Check Client Timeouts Operation
-				else if (completionKey == static_cast<ULONG_PTR>(ProcCompletion::ProcTimeouts))
+				switch (completionKey)
 				{
-					std::chrono::high_resolution_clock::time_point TimePoint = std::chrono::high_resolution_clock::now();
 					//
-					//	Loop through the entire clients container checking their LastPacketReceived time
-					for (auto& _Client : Clients)
+					//	Process Send Packet Operation
+					case static_cast<ULONG_PTR>(ProcCompletion::ProcSend):
 					{
-						if (_Client.second->LastPacketTime + _Client.second->TimeoutPeriod < TimePoint)
+						NetPacket_Send* Packet = static_cast<NetPacket_Send*>(pOverlapped->Pointer);
+						std::string CLID = Packet->GetClientID();
+						if (Clients.count(CLID))
 						{
-							KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::ClientDisconnect), _Client.second), false);
+							NetClient* Client = Clients[CLID];
+							Client->Net_Channels[Packet->GetOID()]->StampPacket(Packet);
+						}
+						//
+						//	No client, initial handshake/ack packet.
+						KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), pOverlapped), false);
+					}
+					break;
+					//
+					//	Process Receive Packet Operation
+					case static_cast<ULONG_PTR>(ProcCompletion::ProcRecv):
+					{
+						NetPacket_Recv* Packet = static_cast<NetPacket_Recv*>(pOverlapped->Pointer);
+						//
+						//	Try to read Packet Header
+						const PacketID OpID = Packet->GetPID();
+						const ClientID ClID = Packet->GetCID();
+						//
+						//	Grab the source address information
+						const SOCKADDR_INET* Source = Packet->GetAddress();
+						const std::string IP(inet_ntoa(Source->Ipv4.sin_addr));
+						const u_short PORT = ntohs(Source->Ipv4.sin_port);
+						const std::string ID(IP + ":" + std::to_string(PORT));
+						Packet->SetClientID(ID);
+						//
+						//	Client logic
+						if (ClID == ClientID::Client)
+						{
+							//
+							//	Create a new NetClient if one does not already exist
+							if (!Clients.count(ID))
+							{
+								Clients.emplace(ID, new NetClient(IP, PORT));
+								KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::ClientConnected), Clients[ID]), false);
+							}
+							//
+							//	Grab our NetClient object
+							NetClient* _Client = Clients[ID];
+							_Client->LastPacketTime = std::chrono::high_resolution_clock::now();
+							if (OpID == PacketID::Acknowledgement) {
+								_Client->ProcessPacket_Acknowledgement(Packet);
+								Packet->bRecycle = true;	//	Recycle the incoming ACK packet
+							}
+							else if (OpID == PacketID::Handshake) {
+								SendPacket(_Client->ProcessPacket_Handshake(Packet));
+								Packet->bRecycle = true;	//	Recycle the incoming handshake packet
+							}
+							else if (OpID == PacketID::Data) {
+								SendPacket(_Client->ProcessPacket_Data(Packet));
+							}
+						}
+						//
+						//	TODO: Server logic
+						else if (ClID == ClientID::Server)
+						{
+							if (Servers.count(ID))
+							{
+								const NetServer* _Server = Servers[ID];
+							}
+							else {
+								Servers[ID] = new NetServer(IP, PORT);
+								printf("\tNew Server\n");
+							}
+						}
+						//
+						//	OutOfBand logic
+						else if (ClID == ClientID::OutOfBand) {
+							printf("RECV OOB\n");
+							//
+							//	Hand the packet over to the main thread for user processing
+							KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::RecvUnread), pOverlapped), false);
+						}
+						//
+						//	Immediately recycle the packet by using it to queue up a new receive operation
+						if (Packet->bRecycle) {
+							KN_CHECK_RESULT(PostQueuedCompletionStatus(RecvIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::RecvCompletion::RecvRelease), pOverlapped), false);
 						}
 					}
-				}
-				//
-				//	Release Client Operation
-				else if (completionKey == static_cast<ULONG_PTR>(ProcCompletion::ProcReleaseClient))
-				{
-					NetClient* Client = static_cast<NetClient*>(pOverlapped->Pointer);
+					break;
+					//
+					//	Resend Unacknowledged Packets Operation
+					case static_cast<ULONG_PTR>(ProcCompletion::ProcUnacknowledged):
+					{
+						std::chrono::high_resolution_clock::time_point TimePoint = std::chrono::high_resolution_clock::now();
+						//
+						//	Loop through the entire clients container checking their LastPacketReceived time
+						for (auto& _Client : Clients)
+						{
+						}
+					}
+					break;
+					//
+					//	Check Client Timeouts Operation
+					case static_cast<ULONG_PTR>(ProcCompletion::ProcTimeouts):
+					{
+						//
+						//	Loop through the entire clients container checking their LastPacketReceived time
+						for (auto& _Client : Clients)
+						{
+							std::chrono::high_resolution_clock::time_point TimePoint = std::chrono::high_resolution_clock::now();
+							//
+							//	Timed-Out Clients
+							if (_Client.second->LastPacketTime + _Client.second->TimeoutPeriod < TimePoint)
+							{
+								KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::ClientDisconnect), _Client.second), false);
+							}
+							//
+							//	Unacknowledged Packets
+							if (_Client.second->LastResendTime + _Client.second->ResendPeriod < TimePoint)
+							{
+								for (auto& Channel_ : _Client.second->Net_Channels)
+								{
+									//
+									//	Return unacknowledged packets older than our clients ResendPeriod
+									for (auto& Packet_ : Channel_.second->GetUnacknowledgedPackets(TimePoint - _Client.second->ResendPeriod))
+									{
+										printf("Resending Unacknowledged Packet! UniqueID: %ju OpID: %i\n", Packet_->GetUID(), Packet_->GetOID());
+										KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), &Packet_->Overlap), false);
+									}
+								}
+							}
+						}
+					}
+					break;
+					//
+					//	Release Client Operation
+					case static_cast<ULONG_PTR>(ProcCompletion::ProcReleaseClient):
+					{
+						NetClient* Client = static_cast<NetClient*>(pOverlapped->Pointer);
 						//
 						//	Formulate the client ID
 						const std::string Client_ID = Client->GetClientID();
-					//
-					//	If they exist
-					if (Clients.count(Client_ID))
-					{
 						//
-						//	Delete and remove them from the Clients container
-						delete Clients[Client_ID];
-						Clients.erase(Client_ID);
+						//	If they exist
+						if (Clients.count(Client_ID))
+						{
+							//
+							//	Delete and remove them from the Clients container
+							delete Clients[Client_ID];
+							Clients.erase(Client_ID);
+						}
 					}
+					break;
 				}
 			}
 			printf("Proc Thread Ended\n");

@@ -28,8 +28,14 @@ namespace KNet
 		//	When was our last packet received
 		std::chrono::time_point<std::chrono::steady_clock> LastPacketTime;
 		//
-		//	Timeout Period in seconds
+		//	When was our last packet resend check
+		std::chrono::time_point<std::chrono::steady_clock> LastResendTime;
+		//
+		//	Timeout Period in seconds (waits this long after receiving no packets before disconnecting the client)
 		std::chrono::seconds TimeoutPeriod;
+		//
+		//	Packet Resend period in milliseconds (waits this long for an acknowledgement before resending a reliable packet)
+		std::chrono::milliseconds ResendPeriod;
 	public:
 		//	WARN: may be incorrect port_recv
 		//	TODO: get the recv port from the remote client somehow..
@@ -38,7 +44,7 @@ namespace KNet
 			Client_ID(IP + ":" + std::to_string(PORT)),
 			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0),
 			LastPacketTime(std::chrono::high_resolution_clock::now()),
-			TimeoutPeriod(30)
+			TimeoutPeriod(30), ResendPeriod(300)
 		{
 			//	WARN: can run out of free objects
 			//	TODO: find another way to store the address in this object..

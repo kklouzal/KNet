@@ -69,10 +69,10 @@ namespace KNet
 					//	Loop through stored packets while it has the next expected UniqueIDs
 					while (IN_Packets.count(++IN_NextID))
 					{
-						printf("LOOP ORDERED\n");
+						printf("LOOP ORDERED (%ju)\n", IN_NextID.load());
 						//
 						//	Push the stored packet into our backlog and remove it from the container
-						PacketBacklog.push_back(IN_Packets[IN_NextID]);
+						PacketBacklog.push_back(IN_Packets[IN_NextID.load()]);
 						IN_Packets.erase(IN_NextID);
 					}
 					return PacketBacklog;
@@ -80,11 +80,30 @@ namespace KNet
 				//
 				//	Store packets with a UniqueID greater than the one we need to process next
 				else {
-					printf("STORE ORDERED\n");
+					printf("STORE ORDERED (missing %ju)\n", IN_NextID.load());
 					IN_Packets[UniqueID] = Packet;
 					return PacketBacklog;
 				}
 			}
+		}
+
+		inline std::deque<NetPacket_Send*> GetUnacknowledgedPackets(std::chrono::time_point<std::chrono::steady_clock> TimeThreshold)
+		{
+			uintmax_t TimeThreshold_ = TimeThreshold.time_since_epoch().count();
+			std::deque<NetPacket_Send*> Packets;
+			for (auto& WaitingPackets : OUT_Packets)
+			{
+				if (WaitingPackets.second->GetTimestamp() <= TimeThreshold_)
+				{
+					//
+					//	Reset our timestamp
+					WaitingPackets.second->SetTimestamp(TimeThreshold_);
+					//
+					//	Add it into our packet deque
+					Packets.push_back(WaitingPackets.second);
+				}
+			}
+			return Packets;
 		}
 	};
 }

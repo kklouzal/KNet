@@ -26,6 +26,7 @@ namespace KNet
 
 		virtual NetPacket_Send* TryACK(const uintmax_t& UniqueID) { return nullptr; }
 		virtual void StampPacket(NetPacket_Send* Packet) = 0;
+		virtual std::deque<NetPacket_Send*> GetUnacknowledgedPackets(std::chrono::time_point<std::chrono::steady_clock> TimeThreshold) { return std::deque<NetPacket_Send*>(); }
 	};
 }
 
