@@ -8,7 +8,7 @@ namespace KNet
 		const std::string _IP_RECV;		//	IP Address to bind to
 		const u_short _PORT_RECV;		//	Port this client receives on
 		const u_short _PORT_SEND;		//	Port this client sends on
-		const std::string ClientID;		//	IP/Port Identifier
+		const std::string Client_ID;		//	IP/Port Identifier
 		NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>* ACKPacketPool = nullptr;
 		NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>* SendPacketPool = nullptr;
 		//
@@ -35,7 +35,7 @@ namespace KNet
 		//	TODO: get the recv port from the remote client somehow..
 		NetClient(std::string IP, u_short PORT)
 			: OVERLAPPED(), _IP_RECV(IP), _PORT_RECV(PORT + 1), _PORT_SEND(PORT),
-			ClientID(IP + ":" + std::to_string(PORT)),
+			Client_ID(IP + ":" + std::to_string(PORT)),
 			pEntries(new OVERLAPPED_ENTRY[PENDING_SENDS + PENDING_RECVS]), pEntriesCount(0),
 			LastPacketTime(std::chrono::high_resolution_clock::now()),
 			TimeoutPeriod(30)
@@ -95,6 +95,11 @@ namespace KNet
 			}
 		}
 
+		std::string GetClientID()
+		{
+			return Client_ID;
+		}
+
 		NetPacket_Send* GetFreePacket(uint8_t OperationID)
 		{
 			NetPacket_Send* Packet = SendPacketPool->GetFreeObject();
@@ -104,7 +109,7 @@ namespace KNet
 				Packet->SetPID(PacketID::Data);
 				Packet->SetCID(ClientID::Client);
 				Packet->SetOID(OperationID);
-				Packet->SetClientID(ClientID);
+				Packet->SetClientID(Client_ID);
 			}
 			return Packet;
 		}

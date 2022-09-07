@@ -49,13 +49,13 @@ namespace KNet
 		enum class RecvCompletion : ULONG_PTR {
 			RecvComplete,
 			RecvRelease,
-			RecvClientDelete,
-			RecvCheckClientTimeouts,
 			RecvShutdown
 		};
 		enum class ProcCompletion : ULONG_PTR {
 			ProcSend,
 			ProcRecv,
+			ProcTimeouts,
+			ProcReleaseClient,
 			ProcShutdown
 		};
 		enum class PointCompletion : ULONG_PTR {
@@ -250,7 +250,7 @@ namespace KNet
 		//	Release a client back to the NetPoint for cleanup and deletion.
 		void ReleaseClient(NetClient* Client)
 		{
-			KN_CHECK_RESULT(PostQueuedCompletionStatus(RecvIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::RecvCompletion::RecvClientDelete), Client), false);
+			KN_CHECK_RESULT(PostQueuedCompletionStatus(ProcIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::ProcCompletion::ProcReleaseClient), Client), false);
 		}
 
 		//
@@ -259,7 +259,7 @@ namespace KNet
 		//			And loops through all clients, don't run it too often.
 		void CheckForTimeouts()
 		{
-			KN_CHECK_RESULT(PostQueuedCompletionStatus(RecvIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::RecvCompletion::RecvCheckClientTimeouts), NULL), false);
+			KN_CHECK_RESULT(PostQueuedCompletionStatus(ProcIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::ProcCompletion::ProcTimeouts), NULL), false);
 		}
 
 		void SendPacket(NetPacket_Send* Packet) noexcept {
@@ -356,7 +356,7 @@ namespace KNet
 				//	Wait until we have a proc event
 				KN_CHECK_RESULT(GetQueuedCompletionStatus(ProcIOCP, &numberOfBytes, &completionKey, &pOverlapped, INFINITE), false);
 				//
-				//
+				//	Process Send Packet Operation
 				if (completionKey == static_cast<ULONG_PTR>(ProcCompletion::ProcSend)) {
 					NetPacket_Send* Packet = static_cast<NetPacket_Send*>(pOverlapped->Pointer);
 					std::string CLID = Packet->GetClientID();
@@ -369,6 +369,8 @@ namespace KNet
 					//	No client, initial handshake.
 					KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), pOverlapped), false);
 				}
+				//
+				//	Process Receive Packet Operation
 				else if (completionKey == static_cast<ULONG_PTR>(ProcCompletion::ProcRecv)) {
 					NetPacket_Recv* Packet = static_cast<NetPacket_Recv*>(pOverlapped->Pointer);
 					//
@@ -434,6 +436,39 @@ namespace KNet
 					//	Immediately recycle the packet by using it to queue up a new receive operation
 					if (Packet->bRecycle) {
 						KN_CHECK_RESULT(PostQueuedCompletionStatus(RecvIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::RecvCompletion::RecvRelease), pOverlapped), false);
+					}
+				}
+				//
+				//	Check Client Timeouts Operation
+				else if (completionKey == static_cast<ULONG_PTR>(ProcCompletion::ProcTimeouts))
+				{
+					std::chrono::high_resolution_clock::time_point TimePoint = std::chrono::high_resolution_clock::now();
+					//
+					//	Loop through the entire clients container checking their LastPacketReceived time
+					for (auto& _Client : Clients)
+					{
+						if (_Client.second->LastPacketTime + _Client.second->TimeoutPeriod < TimePoint)
+						{
+							KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::ClientDisconnect), _Client.second), false);
+						}
+					}
+				}
+				//
+				//	Release Client Operation
+				else if (completionKey == static_cast<ULONG_PTR>(ProcCompletion::ProcReleaseClient))
+				{
+					NetClient* Client = static_cast<NetClient*>(pOverlapped->Pointer);
+						//
+						//	Formulate the client ID
+						const std::string Client_ID = Client->GetClientID();
+					//
+					//	If they exist
+					if (Clients.count(Client_ID))
+					{
+						//
+						//	Delete and remove them from the Clients container
+						delete Clients[Client_ID];
+						Clients.erase(Client_ID);
 					}
 				}
 			}
@@ -560,37 +595,6 @@ namespace KNet
 					//
 					//	Queue up a new receive
 					KN_CHECK_RESULT(g_RIO.RIOReceiveEx(RecvRequestQueue, Packet, 1, NULL, Packet->Address, NULL, 0, 0, pOverlapped->Pointer), false);
-				}
-				//
-				//	Client Delete Operation
-				else if (completionKey == static_cast<ULONG_PTR>(RecvCompletion::RecvClientDelete)) {
-					NetClient* PassedClient = static_cast<NetClient*>(pOverlapped->Pointer);
-					//
-					//	Formulate the client ID
-					const std::string ID(PassedClient->_IP_RECV + ":" + std::to_string(PassedClient->_PORT_SEND));
-					//
-					//	If they exist
-					if (Clients.count(ID))
-					{
-						//
-						//	Delete and remove them from the Clients container
-						delete Clients[ID];
-						Clients.erase(ID);
-					}
-				}
-				//
-				//	Check Client Timeouts Operation
-				else if (completionKey == static_cast<ULONG_PTR>(RecvCompletion::RecvCheckClientTimeouts)) {
-					std::chrono::high_resolution_clock::time_point TimePoint = std::chrono::high_resolution_clock::now();
-					//
-					//	Loop through the entire clients container checking their LastPacketReceived time
-					for (auto& _Client : Clients)
-					{
-						if (_Client.second->LastPacketTime + _Client.second->TimeoutPeriod < TimePoint)
-						{
-							KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::ClientDisconnect), _Client.second), false);
-						}
-					}
 				}
 				//
 				//	Shutdown Thread Operation
