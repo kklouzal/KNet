@@ -22,6 +22,7 @@ namespace KNet {
 		PRIO_BUF Address = nullptr;
 		void* Parent = nullptr;
 		bool bDontRelease;
+		std::string Client_ID;
 
 		NetPacket_Send(char* const Buffer) :
 			RIO_BUF(),
@@ -66,41 +67,73 @@ namespace KNet {
 			Address = Addr;
 		}
 
+		//
+		//	Packet Destination Client Identifier
+		void SetClientID(std::string ClID)
+		{
+			Client_ID = ClID;
+		}
+
+		//
+		//	Packet Destination Client Identifier
+		std::string GetClientID()
+		{
+			return Client_ID;
+		}
+
+		//
+		//	Packet ID (Ack,Data,Handshake)
 		void SetPID(PacketID ID) noexcept
 		{
 			std::memcpy(PID, &ID, sizeof(PacketID));
 		}
 
+		//
+		//	Packet ID (Ack,Data,Handshake)
 		PacketID GetPID() noexcept
 		{
 			return *PID;
 		}
 
+		//
+		//	Packet Client ID (Client/Server)
 		void SetCID(ClientID ID) noexcept
 		{
 			std::memcpy(CID, &ID, sizeof(ClientID));
 		}
 
+		//
+		//	Packet Client ID (Client/Server)
 		ClientID GetCID() noexcept
 		{
 			return *CID;
 		}
 
+		//
+		//	Packet Operation ID (User Defined)
+		//	Also is the Channel ID
 		void SetOID(uint8_t ID) noexcept
 		{
 			std::memcpy(OID, &ID, sizeof(uint8_t));
 		}
 
+		//
+		//	Packet Operation ID (User Defined)
+		//	Also is the Channel ID
 		uint8_t GetOID() noexcept
 		{
 			return *OID;
 		}
 
+		//
+		//	Packet Unique ID
 		void SetUID(uintmax_t ID) noexcept
 		{
 			std::memcpy(UID, &ID, sizeof(uintmax_t));
 		}
 
+		//
+		//	Packet Unique ID
 		uintmax_t GetUID() noexcept
 		{
 			return *UID;
@@ -182,6 +215,7 @@ namespace KNet {
 	public:
 		PRIO_BUF Address = nullptr;
 		void* Parent = nullptr;
+		std::string Client_ID;
 
 		NetPacket_Recv(char* const Buffer) :
 			RIO_BUF(),
@@ -231,21 +265,44 @@ namespace KNet {
 			return reinterpret_cast<SOCKADDR_INET*>(&DataBuffer[Address->Offset]);
 		}
 
+		//
+		//	Packet Destination Client Identifier
+		void SetClientID(std::string ClID)
+		{
+			Client_ID = ClID;
+		}
+
+		//
+		//	Packet Destination Client Identifier
+		std::string GetClientID()
+		{
+			return Client_ID;
+		}
+
+		//
+		//	Packet ID (Ack,Data,Handshake)
 		PacketID GetPID() noexcept
 		{
 			return *PID;
 		}
 
+		//
+		//	Packet Client ID (Client/Server)
 		ClientID GetCID() noexcept
 		{
 			return *CID;
 		}
 
+		//
+		//	Packet Operation ID (User Defined)
+		//	Also is the Channel ID
 		uint8_t GetOID() noexcept
 		{
 			return *OID;
 		}
 
+		//
+		//	Packet Unique ID
 		uintmax_t GetUID() noexcept
 		{
 			return *UID;
