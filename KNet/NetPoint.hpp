@@ -284,7 +284,6 @@ namespace KNet
 				}
 				else if (Packet->GetCID() == ClientID::OutOfBand)
 				{
-					printf("Send OOB\n");
 					//
 					//	Send thread, immediately send the packet
 					KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), &Packet->Overlap), false);
@@ -438,7 +437,6 @@ namespace KNet
 						//
 						//	OutOfBand logic
 						else if (ClID == ClientID::OutOfBand) {
-							printf("RECV OOB\n");
 							//
 							//	Hand the packet over to the main thread for user processing
 							KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::RecvUnread), pOverlapped), false);
@@ -487,7 +485,6 @@ namespace KNet
 									//	Return unacknowledged packets older than our clients ResendPeriod
 									for (auto& Packet_ : Channel_.second->GetUnacknowledgedPackets(TimePoint - _Client.second->ResendPeriod))
 									{
-										printf("Resending Unacknowledged Packet! UniqueID: %ju OpID: %i\n", Packet_->GetUID(), Packet_->GetOID());
 										KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), &Packet_->Overlap), false);
 									}
 								}

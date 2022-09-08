@@ -27,7 +27,7 @@ namespace KNet
 	constexpr DWORD MAX_PACKET_SIZE = 1472;
 	constexpr DWORD PENDING_SENDS = 10240;	//	Internal NetPoint send packets
 	constexpr DWORD PENDING_RECVS = 10240;	//	Internal NetPoint recv packets
-	constexpr DWORD GLOBAL_SENDS = 64;	//	Global PeerNet send packets
+	constexpr DWORD GLOBAL_SENDS = 128;	//	Global PeerNet send packets
 	constexpr DWORD GLOBAL_ADDRS = 1024;	//	Global PeerNet addresses
 	//
 	//	Internal Packet IDs

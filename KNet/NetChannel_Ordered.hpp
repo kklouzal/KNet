@@ -6,9 +6,9 @@ namespace KNet
 	{
 		//
 		//	Record the UniqueID of our most recent incoming packet and the UniqueID of our next outgoing packet
-		std::atomic<uintmax_t> IN_LastID = 0;	//	Latest Incoming UniqueID
-		std::atomic<uintmax_t> IN_NextID = 1;	//	Next Incoming UniqueID to process
-		std::atomic<uintmax_t> OUT_NextID = 1;	//	Next Outgoing UniqueID
+		//std::atomic<uintmax_t> IN_LastID = 0;	//	Latest Incoming UniqueID
+		uintmax_t IN_NextID = 1;	//	Next Incoming UniqueID to process
+		uintmax_t OUT_NextID = 1;	//	Next Outgoing UniqueID
 		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets;	//	Unacknowledged outgoing packets
 		std::unordered_map<uintmax_t, NetPacket_Recv*> IN_Packets;	//	Unprocessed incoming packets
 
@@ -48,42 +48,46 @@ namespace KNet
 		{
 			std::deque<NetPacket_Recv*> PacketBacklog;
 			//
-			//	Drop packets with a UniqueID older than the highest received ID
-			if (UniqueID <= IN_LastID)
+			//	Drop packets with a UniqueID lower than our next expected ID
+			if (UniqueID < IN_NextID)
 			{
 				//
 				//	Drop this packet
 				Packet->bRecycle = true;
 				return PacketBacklog;
 			}
-			else {
-				IN_LastID.store(UniqueID);
+			//
+			//	Process packets with a UniqueID equal to our next expected ID
+			else if (UniqueID == IN_NextID)
+			{
 				//
-				//	Process the packet if its UniqueID is the next one we need
-				if (UniqueID == IN_NextID)
+				//	Add this packet into our return packets deque
+				PacketBacklog.push_back(Packet);
+				//
+				//	Loop any waiting to process packets
+				while (IN_Packets.count(++IN_NextID))
 				{
-					//
-					//	Add this packet into our return packets deque
-					PacketBacklog.push_back(Packet);
-					//
-					//	Loop through stored packets while it has the next expected UniqueIDs
-					while (IN_Packets.count(++IN_NextID))
-					{
-						printf("LOOP ORDERED (%ju)\n", IN_NextID.load());
-						//
-						//	Push the stored packet into our backlog and remove it from the container
-						PacketBacklog.push_back(IN_Packets[IN_NextID.load()]);
-						IN_Packets.erase(IN_NextID);
-					}
-					return PacketBacklog;
+					PacketBacklog.push_back(IN_Packets[IN_NextID]);
+					IN_Packets.erase(IN_NextID);
+				}
+				return PacketBacklog;
+			}
+			//
+			//	Store packets with a UniqueID greater than our next expected ID
+			else if (UniqueID > IN_NextID)
+			{
+				//
+				//	Only store a packet once
+				if (!IN_Packets.count(UniqueID))
+				{
+					IN_Packets[UniqueID] = Packet;
 				}
 				//
-				//	Store packets with a UniqueID greater than the one we need to process next
+				//	Recycle if already stored
 				else {
-					printf("STORE ORDERED (missing %ju)\n", IN_NextID.load());
-					IN_Packets[UniqueID] = Packet;
-					return PacketBacklog;
+					Packet->bRecycle = true;
 				}
+				return PacketBacklog;
 			}
 		}
 

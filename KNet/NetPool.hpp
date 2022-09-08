@@ -46,6 +46,11 @@ namespace KNet
 			return _Pool;
 		}
 
+		size_t Size()
+		{
+			return _Free.size();
+		}
+
 		//
 		//	Returns a pointer to a single unused object
 		//	Otherwise returns nullptr if no free objects available

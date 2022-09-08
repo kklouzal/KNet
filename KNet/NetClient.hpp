@@ -133,7 +133,7 @@ namespace KNet
 				if (AcknowledgedPacket) {
 					const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
 					const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
-					printf("\tRecv_ACK\tPID:%u UID:%ju OPID:%i ACK:%.3fms RTT:%.3fms\n", PID, UniqueID, OPID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
+					printf("\tRecv_ACK\t UID:%ju OpID:%i ACK:%.3fms RTT:%.3fms\n", UniqueID, OPID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
 					ReturnPacket(AcknowledgedPacket);
 				}
 			}
@@ -201,6 +201,7 @@ namespace KNet
 				ACK->SetUID(UniqueID);
 				ACK->write<PacketID>(PacketID::Data);
 			}
+			else { printf("[Client::ProcessPacket_Data] ERROR: No Free ACK Available!"); }
 			switch (CH_ID)
 			{
 				case ChannelID::Reliable_Any:
