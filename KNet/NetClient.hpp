@@ -189,6 +189,7 @@ namespace KNet
 			//
 			//	Formulate an acknowledgement
 			NetPacket_Send* ACK = ACKPacketPool->GetFreeObject();
+			//printf("FREE ACKS: %zi\n", ACKPacketPool->Size());
 			if (ACK)
 			{
 				ACK->AddDestination(_ADDR_RECV);

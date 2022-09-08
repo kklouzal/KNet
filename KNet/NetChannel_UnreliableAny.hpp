@@ -4,7 +4,7 @@ namespace KNet
 {
 	class Unreliable_Any_Channel : public Channel
 	{
-		std::atomic<uintmax_t> OUT_NextID = 1;	//	Outgoing UniqueID
+		uintmax_t OUT_NextID = 1;	//	Outgoing UniqueID
 	public:
 		inline Unreliable_Any_Channel(uint8_t OPID) noexcept : Channel(ChannelID::Unreliable_Any, OPID) {}
 

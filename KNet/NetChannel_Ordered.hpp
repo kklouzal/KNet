@@ -6,7 +6,6 @@ namespace KNet
 	{
 		//
 		//	Record the UniqueID of our most recent incoming packet and the UniqueID of our next outgoing packet
-		//std::atomic<uintmax_t> IN_LastID = 0;	//	Latest Incoming UniqueID
 		uintmax_t IN_NextID = 1;	//	Next Incoming UniqueID to process
 		uintmax_t OUT_NextID = 1;	//	Next Outgoing UniqueID
 		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets;	//	Unacknowledged outgoing packets
@@ -54,7 +53,6 @@ namespace KNet
 				//
 				//	Drop this packet
 				Packet->bRecycle = true;
-				return PacketBacklog;
 			}
 			//
 			//	Process packets with a UniqueID equal to our next expected ID
@@ -70,7 +68,6 @@ namespace KNet
 					PacketBacklog.push_back(IN_Packets[IN_NextID]);
 					IN_Packets.erase(IN_NextID);
 				}
-				return PacketBacklog;
 			}
 			//
 			//	Store packets with a UniqueID greater than our next expected ID
@@ -87,8 +84,8 @@ namespace KNet
 				else {
 					Packet->bRecycle = true;
 				}
-				return PacketBacklog;
 			}
+			return PacketBacklog;
 		}
 
 		inline std::deque<NetPacket_Send*> GetUnacknowledgedPackets(std::chrono::time_point<std::chrono::steady_clock> TimeThreshold)

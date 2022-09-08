@@ -6,8 +6,8 @@ namespace KNet
 	{
 		//
 		//	Record the UniqueID of our most recent incoming packet and the UniqueID of our next outgoing packet
-		std::atomic<uintmax_t> IN_LastID = 0;	//	Incoming UniqueID
-		std::atomic<uintmax_t> OUT_NextID = 1;	//	Outgoing UniqueID
+		uintmax_t IN_LastID = 0;	//	Incoming UniqueID
+		uintmax_t OUT_NextID = 1;	//	Outgoing UniqueID
 		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets;	//	Unacknowledged outgoing packets
 
 	public:
@@ -52,7 +52,7 @@ namespace KNet
 				return false;
 			}
 			else {
-				IN_LastID.store(UniqueID);
+				IN_LastID = UniqueID;
 				return true;
 			}
 		}

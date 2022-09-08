@@ -6,7 +6,7 @@ namespace KNet
 	{
 		//
 		//	Record the UniqueID of our next outgoing packet
-		std::atomic<uintmax_t> OUT_NextID = 1;	//	Outgoing UniqueID
+		uintmax_t OUT_NextID = 1;	//	Outgoing UniqueID
 		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets;	//	Unacknowledged outgoing packets
 
 	public:
