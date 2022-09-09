@@ -9,7 +9,6 @@ namespace KNet
 		const u_short _PORT_RECV;		//	Port this client receives on
 		const u_short _PORT_SEND;		//	Port this client sends on
 		const std::string Client_ID;		//	IP/Port Identifier
-		NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>* ACKPacketPool = nullptr;
 		NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>* SendPacketPool = nullptr;
 		//
 		LPOVERLAPPED_ENTRY pEntries;
@@ -17,7 +16,6 @@ namespace KNet
 		HANDLE IOCP;
 		enum class Completions : ULONG_PTR {
 			RecvUnread,
-			ReleaseACK,
 			ReleaseSEND
 		};
 
@@ -51,7 +49,6 @@ namespace KNet
 			_ADDR_RECV = AddressPool->GetFreeObject();
 			_ADDR_RECV->Resolve(_IP_RECV, _PORT_RECV);
 			//
-			ACKPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS, this);
 			SendPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS, this);
 			//
 			//	Create the IOCP handle
@@ -133,8 +130,8 @@ namespace KNet
 				if (AcknowledgedPacket) {
 					const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
 					const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
-					printf("\tRecv_ACK\t UID:%ju OpID:%i ACK:%.3fms RTT:%.3fms\n", UniqueID, OPID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
-					ReturnPacket(AcknowledgedPacket);
+					//printf("\tRecv_ACK\t UID:%ju OpID:%i ACK:%.3fms RTT:%.3fms\n", UniqueID, OPID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
+					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::ReleaseSEND), AcknowledgedPacket->Overlap), false);
 				}
 			}
 			else if (PID == PacketID::Handshake)
@@ -143,73 +140,41 @@ namespace KNet
 			}
 		}
 
-		inline NetPacket_Send* ProcessPacket_Handshake(NetPacket_Recv* Packet) noexcept
+		inline void ProcessPacket_Handshake(NetPacket_Recv* Packet) noexcept
 		{
-			//
-			//	Formulate an acknowledgement
-			NetPacket_Send* ACK = ACKPacketPool->GetFreeObject();
-			if (ACK)
-			{
-				ACK->AddDestination(_ADDR_RECV);
-				ACK->SetPID(PacketID::Acknowledgement);
-				ACK->SetCID(ClientID::Client);
-				ACK->SetTimestamp(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-				ACK->write<PacketID>(PacketID::Handshake);
-			}
-			//
-			//	Return the acknowledgement to be sent from the calling NetPoint
-			return ACK;
+			//	Well this is useless for the time being..
 		}
 
-		inline NetPacket_Send* ProcessPacket_Data(NetPacket_Recv* Packet)
+		inline void ProcessPacket_Data(NetPacket_Recv* Packet)
 		{
 			uint8_t OPID = Packet->GetOID();
 			ChannelID CH_ID = Net_Channels[OPID]->GetChannelID();
-
-			if (CH_ID == ChannelID::Unreliable_Any)
-			{
-				//
-				//	Push the received packet into this client
-				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &Packet->Overlap), false);
-				return nullptr;
-			}
-
 			uintmax_t UniqueID = Packet->GetUID();
 
-			if (CH_ID == ChannelID::Unreliable_Latest)
+			switch (CH_ID)
 			{
-				if (static_cast<Unreliable_Latest_Channel*>(Net_Channels[OPID])->TryReceive(Packet, UniqueID))
+				case ChannelID::Unreliable_Any:
 				{
 					//
 					//	Push the received packet into this client
-					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &Packet->Overlap), false);
+					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), Packet->Overlap), false);
 				}
-				return nullptr;
-			}
-			//
-			//	Formulate an acknowledgement
-			NetPacket_Send* ACK = ACKPacketPool->GetFreeObject();
-			//printf("FREE ACKS: %zi\n", ACKPacketPool->Size());
-			if (ACK)
-			{
-				ACK->AddDestination(_ADDR_RECV);
-				ACK->SetPID(PacketID::Acknowledgement);
-				ACK->SetCID(ClientID::Client);
-				ACK->SetTimestamp(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-				//
-				//	Values to acknowledge
-				ACK->SetOID(OPID);
-				ACK->SetUID(UniqueID);
-				ACK->write<PacketID>(PacketID::Data);
-			}
-			else { printf("[Client::ProcessPacket_Data] ERROR: No Free ACK Available!"); }
-			switch (CH_ID)
-			{
+				break;
+				case ChannelID::Unreliable_Latest:
+				{
+					if (static_cast<Unreliable_Latest_Channel*>(Net_Channels[OPID])->TryReceive(Packet, UniqueID))
+					{
+						//
+						//	Push the received packet into this client
+						KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), Packet->Overlap), false);
+					}
+				}
+				break;
 				case ChannelID::Reliable_Any:
 				{
 					//
 					//	Push the received packet into this client
-					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &Packet->Overlap), false);
+					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), Packet->Overlap), false);
 
 				}
 				break;
@@ -221,7 +186,7 @@ namespace KNet
 					{
 						//
 						//	Push the received packet into this client
-						KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &Packet->Overlap), false);
+						KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), Packet->Overlap), false);
 					}
 				}
 				break;
@@ -229,26 +194,18 @@ namespace KNet
 				{
 					//
 					//	Loop through any packets returned and give them to this client
-					for (auto _Packet : static_cast<Reliable_Ordered_Channel*>(Net_Channels[OPID])->TryReceive(Packet, UniqueID))
+					for (auto& _Packet : static_cast<Reliable_Ordered_Channel*>(Net_Channels[OPID])->TryReceive(Packet, UniqueID))
 					{
-						KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), &_Packet->Overlap), false);
+						KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::RecvUnread), _Packet->Overlap), false);
 					}
 				}
 				break;
 			}
-			//
-			//	Return the acknowledgement to be sent from the calling NetPoint
-			return ACK;
 		}
 
 		void ReturnPacket(NetPacket_Send* Packet) noexcept
 		{
-			if (Packet->GetPID() == PacketID::Acknowledgement) {
-				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::ReleaseACK), &Packet->Overlap), false);
-			}
-			else {
-				KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::ReleaseSEND), &Packet->Overlap), false);
-			}
+			KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::ReleaseSEND), Packet->Overlap), false);
 		}
 
 		//
@@ -270,11 +227,6 @@ namespace KNet
 					case static_cast<ULONG_PTR>(Completions::RecvUnread):
 					{
 						_Packets.push_back(static_cast<NetPacket_Recv*>(pEntries[i].lpOverlapped->Pointer));
-					}
-					break;
-					case static_cast<ULONG_PTR>(Completions::ReleaseACK):
-					{
-						ACKPacketPool->ReturnUsedObject(static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
 					}
 					break;
 					case static_cast<ULONG_PTR>(Completions::ReleaseSEND):

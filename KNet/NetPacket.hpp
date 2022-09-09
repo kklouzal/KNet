@@ -6,7 +6,7 @@ namespace KNet {
 	class NetPacket_Send : public RIO_BUF {
 		size_t m_StartPos;
 	public:
-		OVERLAPPED Overlap;
+		OVERLAPPED* Overlap;
 		alignas(alignof(std::max_align_t)) char* const DataBuffer;
 		alignas(alignof(std::max_align_t)) char* const BinaryData;
 		size_t m_write;
@@ -26,7 +26,7 @@ namespace KNet {
 
 		NetPacket_Send(char* const Buffer) :
 			RIO_BUF(),
-			Overlap(OVERLAPPED()),
+			Overlap(new OVERLAPPED),
 			DataBuffer(Buffer),
 			BinaryData(new char[MAX_PACKET_SIZE]),
 			//
@@ -43,11 +43,12 @@ namespace KNet {
 			//
 			bDontRelease(false)
 		{
-			Overlap.Pointer = this;
+			Overlap->Pointer = this;
 		}
 
 		~NetPacket_Send() {
 			delete[] BinaryData;
+			delete Overlap;
 		}
 
 		inline void Compress(ZSTD_CCtx* cctx) noexcept
@@ -199,7 +200,7 @@ namespace KNet {
 	class NetPacket_Recv : public RIO_BUF {
 		size_t m_StartPos;
 	public:
-		OVERLAPPED Overlap;
+		OVERLAPPED* Overlap;
 		alignas(alignof(std::max_align_t)) char* const DataBuffer;
 		alignas(alignof(std::max_align_t)) char* const BinaryData;
 		size_t m_read;
@@ -219,7 +220,7 @@ namespace KNet {
 
 		NetPacket_Recv(char* const Buffer) :
 			RIO_BUF(),
-			Overlap(OVERLAPPED()),
+			Overlap(new OVERLAPPED),
 			DataBuffer(Buffer),
 			Address(new RIO_BUF),
 			BinaryData(new char[MAX_PACKET_SIZE]),
@@ -237,12 +238,13 @@ namespace KNet {
 			//
 			bRecycle(false)
 		{
-			Overlap.Pointer = this;
+			Overlap->Pointer = this;
 		}
 
 		~NetPacket_Recv() {
 			delete Address;
 			delete[] BinaryData;
+			delete Overlap;
 		}
 
 		//

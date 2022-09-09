@@ -8,7 +8,7 @@ namespace KNet
 		//	Record the UniqueID of our most recent incoming packet and the UniqueID of our next outgoing packet
 		uintmax_t IN_LastID = 0;	//	Incoming UniqueID
 		uintmax_t OUT_NextID = 1;	//	Outgoing UniqueID
-		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets;	//	Unacknowledged outgoing packets
+		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets = {};	//	Unacknowledged outgoing packets
 
 	public:
 		inline Reliable_Latest_Channel(uint8_t OPID) noexcept : Channel(ChannelID::Reliable_Latest, OPID) {}
@@ -18,9 +18,6 @@ namespace KNet
 		{
 			const uintmax_t UniqueID = OUT_NextID++;	//	Store and increment our UniqueID
 			Packet->SetUID(UniqueID);					//	Write the UniqueID
-			//
-			//	WARN: The packet could potentially gets sent before the user intends to send it..
-			//	TODO: Store the OUT_Packet during Point->SendPacket()..
 			Packet->bDontRelease = true;				//	Needs to wait for an ACK
 			OUT_Packets[UniqueID] = Packet;				//	Store this packet until it gets ACK'd
 		}
@@ -59,7 +56,8 @@ namespace KNet
 
 		inline std::deque<NetPacket_Send*> GetUnacknowledgedPackets(std::chrono::time_point<std::chrono::steady_clock> TimeThreshold)
 		{
-			uintmax_t TimeThreshold_ = TimeThreshold.time_since_epoch().count();
+			uintmax_t TimeThreshold_ = (TimeThreshold - std::chrono::milliseconds(300)).time_since_epoch().count();
+			uintmax_t NewTime_ = TimeThreshold.time_since_epoch().count();
 			std::deque<NetPacket_Send*> Packets;
 			for (auto& WaitingPackets : OUT_Packets)
 			{
@@ -67,7 +65,7 @@ namespace KNet
 				{
 					//
 					//	Reset our timestamp
-					WaitingPackets.second->SetTimestamp(TimeThreshold_);
+					WaitingPackets.second->SetTimestamp(NewTime_);
 					//
 					//	Add it into our packet deque
 					Packets.push_back(WaitingPackets.second);

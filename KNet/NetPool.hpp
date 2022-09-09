@@ -31,7 +31,7 @@ namespace KNet
 		~NetPool()
 		{
 			printf("Cleaning Up %zu NetPool Objects\n", _Pool.size());
-			for (auto Object : _Pool) {
+			for (auto& Object : _Pool) {
 				delete Object;
 			}
 			g_RIO.RIODeregisterBuffer(_BufferID);

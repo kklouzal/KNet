@@ -8,8 +8,8 @@ namespace KNet
 		//	Record the UniqueID of our most recent incoming packet and the UniqueID of our next outgoing packet
 		uintmax_t IN_NextID = 1;	//	Next Incoming UniqueID to process
 		uintmax_t OUT_NextID = 1;	//	Next Outgoing UniqueID
-		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets;	//	Unacknowledged outgoing packets
-		std::unordered_map<uintmax_t, NetPacket_Recv*> IN_Packets;	//	Unprocessed incoming packets
+		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets = {};	//	Unacknowledged outgoing packets
+		std::unordered_map<uintmax_t, NetPacket_Recv*> IN_Packets = {};	//	Unprocessed incoming packets
 
 	public:
 		inline Reliable_Ordered_Channel(uint8_t OPID) noexcept : Channel(ChannelID::Reliable_Ordered, OPID) {}
@@ -19,9 +19,6 @@ namespace KNet
 		{
 			const uintmax_t UniqueID = OUT_NextID++;	//	Store and increment our UniqueID
 			Packet->SetUID(UniqueID);					//	Write the UniqueID
-			//
-			//	WARN: The packet could potentially gets sent before the user intends to send it..
-			//	TODO: Store the OUT_Packet during Point->SendPacket()..
 			Packet->bDontRelease = true;				//	Needs to wait for an ACK
 			OUT_Packets[UniqueID] = Packet;				//	Store this packet until it gets ACK'd
 		}
@@ -77,6 +74,7 @@ namespace KNet
 				//	Only store a packet once
 				if (!IN_Packets.count(UniqueID))
 				{
+					printf("Ordered STORE %ju (waiting %ju)\n", UniqueID, IN_NextID);
 					IN_Packets[UniqueID] = Packet;
 				}
 				//
@@ -90,15 +88,20 @@ namespace KNet
 
 		inline std::deque<NetPacket_Send*> GetUnacknowledgedPackets(std::chrono::time_point<std::chrono::steady_clock> TimeThreshold)
 		{
-			uintmax_t TimeThreshold_ = TimeThreshold.time_since_epoch().count();
+			uintmax_t TimeThreshold_ = (TimeThreshold - std::chrono::milliseconds(300)).time_since_epoch().count();
+			uintmax_t NewTime_ = TimeThreshold.time_since_epoch().count();
 			std::deque<NetPacket_Send*> Packets;
+			if (OUT_Packets.size() > 1)
+			{
+				printf("Ordered Unacknowledged: %zi\n", OUT_Packets.size());
+			}
 			for (auto& WaitingPackets : OUT_Packets)
 			{
 				if (WaitingPackets.second->GetTimestamp() <= TimeThreshold_)
 				{
 					//
 					//	Reset our timestamp
-					WaitingPackets.second->SetTimestamp(TimeThreshold_);
+					WaitingPackets.second->SetTimestamp(NewTime_);
 					//
 					//	Add it into our packet deque
 					Packets.push_back(WaitingPackets.second);

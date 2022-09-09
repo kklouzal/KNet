@@ -27,29 +27,32 @@ int main()
     //  Hold onto any connected clients
     std::deque<KNet::NetClient*> ConnectedClients;
 
-    while (true) // 20 iterations ensures packets are being recycled
+    std::system("PAUSE");
+    //
+    //  Send some packets to initiate our connection
+    for (auto j = 0; j < 1; j++)
     {
-        std::system("PAUSE");
-        //
-        //  Send a test packet(s)
-        for (auto j = 0; j < 1; j++)
+        KNet::NetPacket_Send* Pkt = KNet::SendPacketPool->GetFreeObject();
+        if (Pkt)
         {
-            KNet::NetPacket_Send* Pkt = KNet::SendPacketPool->GetFreeObject();
-            if (Pkt)
-            {
-                Pkt->AddDestination(RemoteAddr);
-                Pkt->SetPID(KNet::PacketID::Handshake);
-                Pkt->SetCID(KNet::ClientID::Client);
-                Point->SendPacket(Pkt);
-            }
+            Pkt->AddDestination(RemoteAddr);
+            Pkt->SetPID(KNet::PacketID::Handshake);
+            Pkt->SetCID(KNet::ClientID::Client);
+            Point->SendPacket(Pkt);
         }
+    }
 
-        Sleep(1);
+    Sleep(100); //  Wait some time for us to connect
+
+    while (true)
+    {
+        //std::system("PAUSE");
+        Sleep(1); //  slooooow doooooown!
 
         //
         //  Get any received out-of-band packets
-        const auto Packets1 = Point->GetPackets();
-        for (auto _Packet : Packets1.Packets)
+        const auto& Packets1 = Point->GetPackets();
+        for (auto& _Packet : Packets1.Packets)
         {
             //
             //  Release our packet when we're done with it
@@ -57,7 +60,7 @@ int main()
         }
         //
         //  Check for new clients
-        for (auto _Client : Packets1.Clients_Connected)
+        for (auto& _Client : Packets1.Clients_Connected)
         {
             ConnectedClients.push_back(_Client);
             //
@@ -75,8 +78,8 @@ int main()
         {
             //
             //  Check if each client has any new packets
-            const auto Packets = _Client->GetPackets();
-            for (auto _Packet : Packets)
+            const auto& Packets = _Client->GetPackets();
+            for (auto& _Packet : Packets)
             {
                 //
                 //  Read out the data we sent
@@ -91,7 +94,7 @@ int main()
             }
             //
             //  Send each client a packet on each channel
-            KNet::NetPacket_Send* Pkt1 = _Client->GetFreePacket(0);
+            /*KNet::NetPacket_Send* Pkt1 = _Client->GetFreePacket(0);
             if (Pkt1) {
                 Pkt1->write<const char*>("This is an Unreliable_Any packet");
                 Point->SendPacket(Pkt1);
@@ -102,7 +105,7 @@ int main()
                 Pkt2->write<const char*>("This is an Unreliable_Latest packet");
                 Point->SendPacket(Pkt2);
             }
-            else { printf("PKT2 UNAVAILABLE!\n"); }
+            else { printf("PKT2 UNAVAILABLE!\n"); }*/
             KNet::NetPacket_Send* Pkt3 = _Client->GetFreePacket(2);
             if (Pkt3) {
                 Pkt3->write<const char*>("This is a Reliable_Any packet");
@@ -115,7 +118,7 @@ int main()
                 Point->SendPacket(Pkt4);
             }
             else { printf("PKT4 UNAVAILABLE!\n"); }
-            KNet::NetPacket_Send* Pkt5 = _Client->GetFreePacket(4);
+           KNet::NetPacket_Send* Pkt5 = _Client->GetFreePacket(4);
             if (Pkt5) {
                 Pkt5->write<const char*>("This is a Reliable_Ordered packet");
                 Point->SendPacket(Pkt5);
@@ -126,7 +129,7 @@ int main()
         //  Check for disconnected clients
         //  NOTE: The same NetClient can wind up in the Clients_Disconnected deque multiple times.
         //  Use some external means to identify if they've been cleaned up/marked for cleanup.
-        for (auto _Client : Packets1.Clients_Disconnected)
+        for (auto& _Client : Packets1.Clients_Disconnected)
         {
             for (std::deque<KNet::NetClient*>::iterator it = ConnectedClients.begin(); it != ConnectedClients.end();)
             {
