@@ -2,7 +2,7 @@
 
 namespace KNet
 {
-	template <typename T, int MaxSize> class NetPool
+	template <typename T, const uint16_t MaxSize> class NetPool
 	{
 	private:
 		alignas(alignof(std::max_align_t)) char* const _Data;
@@ -10,7 +10,7 @@ namespace KNet
 		std::deque<T*> _Pool;
 		std::deque<T*> _Free;
 	public:
-		NetPool(const DWORD PoolSize, void* ParentObject) :
+		NetPool(const uint32_t PoolSize, void* ParentObject) :
 			_Data(new char[PoolSize * MaxSize]),
 			_BufferID(g_RIO.RIORegisterBuffer(_Data, PoolSize* MaxSize))
 		{
@@ -46,7 +46,7 @@ namespace KNet
 			return _Pool;
 		}
 
-		size_t Size()
+		size_t Size() noexcept
 		{
 			return _Free.size();
 		}
@@ -71,7 +71,19 @@ namespace KNet
 		//	Places an object back into the pool of free objects
 		void ReturnUsedObject(T* Object)
 		{
-			_Free.push_back(Object);
+			bool Go = true;
+			for (auto Elem : _Free)
+			{
+				if (Elem == Object)
+				{
+					printf("TRYING TO INSERT DUPLICATE INTO FREE POOL!! BAD!\n");
+					Go = false;
+				}
+			}
+			if (Go)
+			{
+				_Free.push_back(Object);
+			}
 		}
 	};
 }

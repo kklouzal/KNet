@@ -251,16 +251,16 @@ namespace KNet
 
 		//
 		//	Release a client back to the NetPoint for cleanup and deletion.
-		void ReleaseClient(NetClient* Client)
+		void ReleaseClient(NetClient* Client) noexcept
 		{
 			KN_CHECK_RESULT(PostQueuedCompletionStatus(ProcIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::ProcCompletion::ProcReleaseClient), Client), false);
 		}
 
 		//
 		//	Check for client timeouts
-		void CheckForTimeouts()
+		void CheckForTimeouts() noexcept
 		{
-			KN_CHECK_RESULT(PostQueuedCompletionStatus(ProcIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::ProcCompletion::ProcTimeouts), NULL), false);
+			KN_CHECK_RESULT(PostQueuedCompletionStatus(ProcIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::ProcCompletion::ProcTimeouts), nullptr), false);
 		}
 
 		void SendPacket(NetPacket_Send* Packet) noexcept {
@@ -268,7 +268,9 @@ namespace KNet
 			{
 				//
 				//	Set our Timestamp
-				Packet->SetTimestamp(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+				const std::chrono::time_point<std::chrono::steady_clock> Now = std::chrono::high_resolution_clock::now();
+				Packet->NextTransmit = Now + std::chrono::milliseconds(300);
+				Packet->SetTimestamp(Now.time_since_epoch().count());
 				//
 				//	Send the packet
 				if (Packet->GetCID() == ClientID::Client)
@@ -353,12 +355,11 @@ namespace KNet
 			return _Result;
 		}
 
-		void Thread_Proc() noexcept
+		void Thread_Proc()
 		{
 			printf("Proc Thread Started\n");
 			DWORD numberOfBytes = 0;
 			ULONG_PTR completionKey = 0;
-			ULONG numResults = 0;
 			OVERLAPPED* pOverlapped = nullptr;
 			while (bRunning.load())
 			{
@@ -413,50 +414,77 @@ namespace KNet
 							//
 							//	Grab our NetClient object
 							NetClient* _Client = Clients[ID];
+							//
+							//	Reset our clients LastPacketTime
 							_Client->LastPacketTime = std::chrono::high_resolution_clock::now();
-							if (OpID == PacketID::Acknowledgement) {
-								_Client->ProcessPacket_Acknowledgement(Packet);
-								Packet->bRecycle = true;	//	Recycle the incoming ACK packet
-							}
-							else if (OpID == PacketID::Handshake) {
-								//
-								//	Formulate an acknowledgement
-								NetPacket_Send* ACK = ACKPackets->GetFreeObject();
-								if (ACK)
+							//
+							//	Handle packet per ID
+							switch (OpID)
+							{
+								case PacketID::Acknowledgement:
 								{
-									ACK->AddDestination(_Client->_ADDR_RECV);
-									ACK->SetPID(PacketID::Acknowledgement);
-									ACK->SetCID(ClientID::Client);
-									ACK->SetTimestamp(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-									ACK->write<PacketID>(PacketID::Handshake);
+									_Client->ProcessPacket_Acknowledgement(Packet);
 									//
-									//	Immediately send the ACK
-									KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), ACK->Overlap), false);
-								} else { printf("[POINT:PROC HANDSHAKE] ERROR: No Free ACK Available!\n"); }
-								//_Client->ProcessPacket_Handshake(Packet);
-								Packet->bRecycle = true;	//	Recycle the incoming handshake packet
-							}
-							else if (OpID == PacketID::Data) {
-								//
-								//	Formulate an acknowledgement
-								NetPacket_Send* ACK = ACKPackets->GetFreeObject();
-								//printf("FREE ACKS: %zi\n", ACKPackets->Size());
-								if (ACK)
+									//	Immediately recycle acknowledgements
+									KN_CHECK_RESULT(PostQueuedCompletionStatus(RecvIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::RecvCompletion::RecvRelease), pOverlapped), false);
+								}
+								break;
+								case PacketID::Handshake:
 								{
-									ACK->AddDestination(_Client->_ADDR_RECV);
-									ACK->SetPID(PacketID::Acknowledgement);
-									ACK->SetCID(ClientID::Client);
-									ACK->SetTimestamp(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 									//
-									//	Values to acknowledge
-									ACK->SetOID(Packet->GetOID());
-									ACK->SetUID(Packet->GetUID());
-									ACK->write<PacketID>(OpID);
+									//	Formulate an acknowledgement
+									NetPacket_Send* ACK = ACKPackets->GetFreeObject();
+									if (ACK)
+									{
+										ACK->AddDestination(_Client->_ADDR_RECV);
+										ACK->SetPID(PacketID::Acknowledgement);
+										ACK->SetCID(ClientID::Client);
+										ACK->SetTimestamp(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+										ACK->write<PacketID>(PacketID::Handshake);
+										//
+										//	Immediately send the ACK
+										KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), ACK->Overlap), false);
+									}
+									else { printf("[POINT:PROC HANDSHAKE] ERROR: No Free ACK Available!\n"); }
+									//_Client->ProcessPacket_Handshake(Packet);
 									//
-									//	Immediately send the ACK
-									KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), ACK->Overlap), false);
-								} else { printf("[POINT:PROC DATA] (UID: %ju) ERROR: No Free ACK Available!\n", Packet->GetUID()); }
-								_Client->ProcessPacket_Data(Packet);
+									//	Immediately recycle handshakes
+									KN_CHECK_RESULT(PostQueuedCompletionStatus(RecvIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::RecvCompletion::RecvRelease), pOverlapped), false);
+								}
+								break;
+								case PacketID::Data:
+								{
+									//
+									//	Formulate an acknowledgement
+									NetPacket_Send* ACK = ACKPackets->GetFreeObject();
+									//printf("FREE ACKS: %zi\n", ACKPackets->Size());
+									if (ACK)
+									{
+										ACK->AddDestination(_Client->_ADDR_RECV);
+										ACK->SetPID(PacketID::Acknowledgement);
+										ACK->SetCID(ClientID::Client);
+										ACK->SetTimestamp(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+										//
+										//	Values to acknowledge
+										ACK->SetOID(Packet->GetOID());
+										ACK->SetUID(Packet->GetUID());
+										ACK->write<PacketID>(OpID);
+										//
+										//	Immediately send the ACK
+										KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), ACK->Overlap), false);
+									}
+									else { printf("[POINT:PROC DATA] (UID: %ju) ERROR: No Free ACK Available!\n", Packet->GetUID()); }
+									//
+									//	Process the packet
+									_Client->ProcessPacket_Data(Packet);
+									//
+									//	Recycle marked packets
+									if (Packet->bRecycle)
+									{
+										KN_CHECK_RESULT(PostQueuedCompletionStatus(RecvIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::RecvCompletion::RecvRelease), pOverlapped), false);
+									}
+								}
+								break;
 							}
 						}
 						//
@@ -479,11 +507,6 @@ namespace KNet
 							//	Hand the packet over to the main thread for user processing
 							KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::RecvUnread), pOverlapped), false);
 						}
-						//
-						//	Immediately recycle the packet by using it to queue up a new receive operation
-						if (Packet->bRecycle) {
-							KN_CHECK_RESULT(PostQueuedCompletionStatus(RecvIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::RecvCompletion::RecvRelease), pOverlapped), false);
-						}
 					}
 					break;
 					//
@@ -494,26 +517,30 @@ namespace KNet
 						//	Loop through the entire clients container checking their LastPacketReceived time
 						for (auto& _Client : Clients)
 						{
-							std::chrono::high_resolution_clock::time_point TimePoint = std::chrono::high_resolution_clock::now();
+							const std::chrono::steady_clock::time_point Now = std::chrono::steady_clock::now();
 							//
 							//	Timed-Out Clients
-							if (_Client.second->LastPacketTime + _Client.second->TimeoutPeriod < TimePoint)
+							if (_Client.second->LastPacketTime + _Client.second->TimeoutPeriod <= Now)
 							{
 								KN_CHECK_RESULT(PostQueuedCompletionStatus(PointIOCP, NULL, static_cast<ULONG_PTR>(PointCompletion::ClientDisconnect), _Client.second), false);
 							}
 							//
 							//	Unacknowledged Packets
-							if (_Client.second->LastResendTime + _Client.second->ResendPeriod < TimePoint)
+							if (_Client.second->LastResendTime + _Client.second->ResendPeriod <= Now)
 							{
+								std::deque<NetPacket_Send*> Packets_;
+								//
+								//	Check each channel
 								for (auto& Channel_ : _Client.second->Net_Channels)
 								{
-									//
-									//	Return unacknowledged packets older than our clients ResendPeriod
-									for (auto& Packet_ : Channel_.second->GetUnacknowledgedPackets(TimePoint /* - _Client.second->ResendPeriod */ ))
-									{
-										KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), Packet_->Overlap), false);
-										printf("RESEND PACKET OpID: %i UID: %ju (ACKs Remaining: %zi)\n", Packet_->GetOID(), Packet_->GetUID(), ACKPackets->Size());
-									}
+									Channel_.second->GetUnacknowledgedPackets(Packets_, Now);
+								}
+								//
+								//	Resend Unacknowledged Packets
+								for (auto& Packet_ : Packets_)
+								{
+									KN_CHECK_RESULT(PostQueuedCompletionStatus(SendIOCP, NULL, static_cast<ULONG_PTR>(NetPoint::SendCompletion::SendInitiate), Packet_->Overlap), false);
+									printf("RESEND PACKET OpID: %i UID: %ju (ACKs Remaining: %zi)\n", Packet_->GetOID(), Packet_->GetUID(), ACKPackets->Size());
 								}
 							}
 						}
@@ -543,7 +570,7 @@ namespace KNet
 					case static_cast<ULONG_PTR>(ProcCompletion::ProcReleaseACK):
 					{
 						ACKPackets->ReturnUsedObject(static_cast<NetPacket_Send*>(pOverlapped->Pointer));
-						printf("ACKs Remaining %zi\n", ACKPackets->Size());
+						//printf("ACKs Remaining %zi\n", ACKPackets->Size());
 					}
 					break;
 				}
@@ -587,7 +614,7 @@ namespace KNet
 						}
 						else
 						{
-							//	TODO: CHECK THIS, I THINK IT'S DIIIIRTYYY
+							//	Parent == Client Owned
 							if (Packet->Parent)
 							{
 								//
@@ -596,6 +623,7 @@ namespace KNet
 									static_cast<NetClient*>(Packet->Parent)->ReturnPacket(Packet);
 								}
 							}
+							//	!Parent == Globally Owned
 							else {
 								//
 								//	Hand the packet over to the main thread to be stored back in the SendBufferPool
@@ -631,7 +659,7 @@ namespace KNet
 
 		//
 		//	Threadded Receive Function
-		void Thread_Recv() {
+		void Thread_Recv() noexcept {
 			printf("Recv Thread Started\n");
 			DWORD numberOfBytes = 0;
 			ULONG_PTR completionKey = 0;

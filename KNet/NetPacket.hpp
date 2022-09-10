@@ -23,6 +23,9 @@ namespace KNet {
 		void* Parent = nullptr;
 		bool bDontRelease;
 		std::string Client_ID;
+		std::chrono::time_point<std::chrono::steady_clock> NextTransmit;
+
+		bool bInUse;
 
 		NetPacket_Send(char* const Buffer) :
 			RIO_BUF(),
@@ -41,7 +44,7 @@ namespace KNet {
 			m_write(sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t) + sizeof(uintmax_t)),
 			m_StartPos(sizeof(PacketID) + sizeof(ClientID) + sizeof(uint8_t) + sizeof(uintmax_t) + sizeof(uintmax_t)),
 			//
-			bDontRelease(false)
+			bDontRelease(false), NextTransmit(std::chrono::steady_clock::now()), bInUse(false)
 		{
 			Overlap->Pointer = this;
 		}

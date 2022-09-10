@@ -108,6 +108,13 @@ namespace KNet
 			NetPacket_Send* Packet = SendPacketPool->GetFreeObject();
 			if (Packet)
 			{
+				while (Packet->bInUse)
+				{
+					//printf("RETURNING IN USE PACKET AS FREE! BAD!\n");
+					Packet = SendPacketPool->GetFreeObject();
+				}
+				Packet->bInUse = true;
+
 				Packet->AddDestination(_ADDR_RECV);
 				Packet->SetPID(PacketID::Data);
 				Packet->SetCID(ClientID::Client);
@@ -130,7 +137,7 @@ namespace KNet
 				if (AcknowledgedPacket) {
 					const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
 					const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
-					//printf("\tRecv_ACK\t UID:%ju OpID:%i ACK:%.3fms RTT:%.3fms\n", UniqueID, OPID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
+					printf("\tRecv_ACK\t UID:%ju OpID:%i ACK:%.3fms RTT:%.3fms\n", UniqueID, OPID, AckTime.count() * 0.001f, RttTime.count() * 0.001f);
 					KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::ReleaseSEND), AcknowledgedPacket->Overlap), false);
 				}
 			}
@@ -147,9 +154,9 @@ namespace KNet
 
 		inline void ProcessPacket_Data(NetPacket_Recv* Packet)
 		{
-			uint8_t OPID = Packet->GetOID();
-			ChannelID CH_ID = Net_Channels[OPID]->GetChannelID();
-			uintmax_t UniqueID = Packet->GetUID();
+			const uint8_t OPID = Packet->GetOID();
+			const ChannelID CH_ID = Net_Channels[OPID]->GetChannelID();
+			const uintmax_t UniqueID = Packet->GetUID();
 
 			switch (CH_ID)
 			{
@@ -231,7 +238,9 @@ namespace KNet
 					break;
 					case static_cast<ULONG_PTR>(Completions::ReleaseSEND):
 					{
-						SendPacketPool->ReturnUsedObject(static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer));
+						NetPacket_Send* Pkt = static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer);
+						Pkt->bInUse = false;
+						SendPacketPool->ReturnUsedObject(Pkt);
 					}
 					break;
 				}

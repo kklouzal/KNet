@@ -15,7 +15,7 @@ namespace KNet
 		inline Reliable_Ordered_Channel(uint8_t OPID) noexcept : Channel(ChannelID::Reliable_Ordered, OPID) {}
 
 		//	Initialize and return a new packet for sending
-		inline void StampPacket(NetPacket_Send* Packet)
+		inline void StampPacket(NetPacket_Send* Packet) override
 		{
 			const uintmax_t UniqueID = OUT_NextID++;	//	Store and increment our UniqueID
 			Packet->SetUID(UniqueID);					//	Write the UniqueID
@@ -23,7 +23,7 @@ namespace KNet
 			OUT_Packets[UniqueID] = Packet;				//	Store this packet until it gets ACK'd
 		}
 
-		inline NetPacket_Send* TryACK(const uintmax_t& UniqueID)
+		inline NetPacket_Send* TryACK(const uintmax_t& UniqueID) override
 		{
 			//
 			//	If we have an outgoing packet waiting to be acknowledged
@@ -65,6 +65,9 @@ namespace KNet
 					PacketBacklog.push_back(IN_Packets[IN_NextID]);
 					IN_Packets.erase(IN_NextID);
 				}
+				//
+				//	Keep this packet
+				Packet->bRecycle = false;
 			}
 			//
 			//	Store packets with a UniqueID greater than our next expected ID
@@ -86,28 +89,24 @@ namespace KNet
 			return PacketBacklog;
 		}
 
-		inline std::deque<NetPacket_Send*> GetUnacknowledgedPackets(std::chrono::time_point<std::chrono::steady_clock> TimeThreshold)
+		inline void GetUnacknowledgedPackets(std::deque<NetPacket_Send*>& Packets_, const std::chrono::time_point<std::chrono::steady_clock>& Now) override
 		{
-			uintmax_t TimeThreshold_ = (TimeThreshold - std::chrono::milliseconds(300)).time_since_epoch().count();
-			uintmax_t NewTime_ = TimeThreshold.time_since_epoch().count();
-			std::deque<NetPacket_Send*> Packets;
-			if (OUT_Packets.size() > 1)
+			/*if (OUT_Packets.size() > 1)
 			{
 				printf("Ordered Unacknowledged: %zi\n", OUT_Packets.size());
-			}
+			}*/
 			for (auto& WaitingPackets : OUT_Packets)
 			{
-				if (WaitingPackets.second->GetTimestamp() <= TimeThreshold_)
+				if (WaitingPackets.second->NextTransmit <= Now)
 				{
 					//
-					//	Reset our timestamp
-					WaitingPackets.second->SetTimestamp(NewTime_);
+					//	Set our NextTransmit time
+					WaitingPackets.second->NextTransmit = Now + std::chrono::milliseconds(300);
 					//
 					//	Add it into our packet deque
-					Packets.push_back(WaitingPackets.second);
+					Packets_.push_back(WaitingPackets.second);
 				}
 			}
-			return Packets;
 		}
 	};
 }

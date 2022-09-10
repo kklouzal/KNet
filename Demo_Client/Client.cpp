@@ -94,7 +94,7 @@ int main()
             }
             //
             //  Send each client a packet on each channel
-            /*KNet::NetPacket_Send* Pkt1 = _Client->GetFreePacket(0);
+            KNet::NetPacket_Send* Pkt1 = _Client->GetFreePacket(0);
             if (Pkt1) {
                 Pkt1->write<const char*>("This is an Unreliable_Any packet");
                 Point->SendPacket(Pkt1);
@@ -105,7 +105,7 @@ int main()
                 Pkt2->write<const char*>("This is an Unreliable_Latest packet");
                 Point->SendPacket(Pkt2);
             }
-            else { printf("PKT2 UNAVAILABLE!\n"); }*/
+            else { printf("PKT2 UNAVAILABLE!\n"); }
             KNet::NetPacket_Send* Pkt3 = _Client->GetFreePacket(2);
             if (Pkt3) {
                 Pkt3->write<const char*>("This is a Reliable_Any packet");

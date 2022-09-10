@@ -117,7 +117,7 @@ namespace KNet
 				sizeof(GUID),
 				(void**)&g_RIO,
 				sizeof(g_RIO),
-				&dwBytes, 0, 0), SOCKET_ERROR);
+				&dwBytes, nullptr, nullptr), SOCKET_ERROR);
 			closesocket(RioSocket);
 			SendPacketPool = new NetPool<NetPacket_Send, ADDR_SIZE + MAX_PACKET_SIZE>(GLOBAL_SENDS, nullptr);
 			AddressPool = new NetPool<NetAddress, ADDR_SIZE>(GLOBAL_ADDRS, nullptr);
