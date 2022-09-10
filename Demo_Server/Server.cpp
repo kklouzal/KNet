@@ -27,8 +27,8 @@ int main()
     {
         //
         //  Get any received out-of-band packets
-        const auto Packets1 = Point->GetPackets();
-        for (auto _Packet : Packets1.Packets)
+        const auto& Packets1 = Point->GetPackets();
+        for (auto& _Packet : Packets1.Packets)
         {
             //
             //  Release our packet when we're done with it
@@ -36,7 +36,7 @@ int main()
         }
         //
         //  Check for new clients
-        for (auto _Client : Packets1.Clients_Connected)
+        for (auto& _Client : Packets1.Clients_Connected)
         {
             ConnectedClients.push_back(_Client);
             //
@@ -50,13 +50,16 @@ int main()
         }
         //
         //  Loop all connected clients
-        for (auto _Client : ConnectedClients)
+        for (auto& _Client : ConnectedClients)
         {
             //
             //  Check if each client has any new packets
-            const auto Packets = _Client->GetPackets();
-            for (auto _Packet : Packets)
+            const auto& Packets = _Client->GetPackets();
+            //bool nl = false;
+            for (auto& _Packet : Packets)
             {
+                //nl = true;
+               // printf("Packet OpID: %i, UID: %ju\n", _Packet->GetOID(), _Packet->GetUID());
                 //
                 //  Read out the data we sent
                 //const char* Dat;
@@ -68,6 +71,8 @@ int main()
                 //  Release our packet when we're done with it
                 Point->ReleasePacket(_Packet);
             }
+            //if (nl)
+            //printf("\n");
         }
         //
         //  Check for disconnected clients

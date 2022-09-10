@@ -6,26 +6,23 @@ namespace KNet
 	{
 		//
 		//	Record the UniqueID of our most recent incoming packet and the UniqueID of our next outgoing packet
-		std::atomic<uintmax_t> IN_LastID = 0;	//	Incoming UniqueID
-		std::atomic<uintmax_t> OUT_NextID = 1;	//	Outgoing UniqueID
-		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets;	//	Unacknowledged outgoing packets
+		uintmax_t IN_LastID = 0;	//	Incoming UniqueID
+		uintmax_t OUT_NextID = 1;	//	Outgoing UniqueID
+		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets = {};	//	Unacknowledged outgoing packets
 
 	public:
 		inline Reliable_Latest_Channel(uint8_t OPID) noexcept : Channel(ChannelID::Reliable_Latest, OPID) {}
 
 		//	Initialize and return a new packet for sending
-		inline void StampPacket(NetPacket_Send* Packet)
+		inline void StampPacket(NetPacket_Send* Packet) override
 		{
 			const uintmax_t UniqueID = OUT_NextID++;	//	Store and increment our UniqueID
 			Packet->SetUID(UniqueID);					//	Write the UniqueID
-			//
-			//	WARN: The packet could potentially gets sent before the user intends to send it..
-			//	TODO: Store the OUT_Packet during Point->SendPacket()..
 			Packet->bDontRelease = true;				//	Needs to wait for an ACK
 			OUT_Packets[UniqueID] = Packet;				//	Store this packet until it gets ACK'd
 		}
 
-		inline NetPacket_Send* TryACK(const uintmax_t& UniqueID)
+		inline NetPacket_Send* TryACK(const uintmax_t& UniqueID) override
 		{
 			//
 			//	If we have an outgoing packet waiting to be acknowledged
@@ -52,8 +49,24 @@ namespace KNet
 				return false;
 			}
 			else {
-				IN_LastID.store(UniqueID);
+				IN_LastID = UniqueID;
 				return true;
+			}
+		}
+
+		inline void GetUnacknowledgedPackets(std::deque<NetPacket_Send*>& Packets_, const std::chrono::time_point<std::chrono::steady_clock>& Now) override
+		{
+			for (auto& WaitingPackets : OUT_Packets)
+			{
+				if (WaitingPackets.second->NextTransmit <= Now)
+				{
+					//
+					//	Set our NextTransmit time
+					WaitingPackets.second->NextTransmit = Now + std::chrono::milliseconds(300);
+					//
+					//	Add it into our packet deque
+					Packets_.push_back(WaitingPackets.second);
+				}
 			}
 		}
 	};

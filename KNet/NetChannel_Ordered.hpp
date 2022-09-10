@@ -6,28 +6,24 @@ namespace KNet
 	{
 		//
 		//	Record the UniqueID of our most recent incoming packet and the UniqueID of our next outgoing packet
-		std::atomic<uintmax_t> IN_LastID = 0;	//	Latest Incoming UniqueID
-		std::atomic<uintmax_t> IN_NextID = 1;	//	Next Incoming UniqueID to process
-		std::atomic<uintmax_t> OUT_NextID = 1;	//	Next Outgoing UniqueID
-		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets;	//	Unacknowledged outgoing packets
-		std::unordered_map<uintmax_t, NetPacket_Recv*> IN_Packets;	//	Unprocessed incoming packets
+		uintmax_t IN_NextID = 1;	//	Next Incoming UniqueID to process
+		uintmax_t OUT_NextID = 1;	//	Next Outgoing UniqueID
+		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets = {};	//	Unacknowledged outgoing packets
+		std::unordered_map<uintmax_t, NetPacket_Recv*> IN_Packets = {};	//	Unprocessed incoming packets
 
 	public:
 		inline Reliable_Ordered_Channel(uint8_t OPID) noexcept : Channel(ChannelID::Reliable_Ordered, OPID) {}
 
 		//	Initialize and return a new packet for sending
-		inline void StampPacket(NetPacket_Send* Packet)
+		inline void StampPacket(NetPacket_Send* Packet) override
 		{
 			const uintmax_t UniqueID = OUT_NextID++;	//	Store and increment our UniqueID
 			Packet->SetUID(UniqueID);					//	Write the UniqueID
-			//
-			//	WARN: The packet could potentially gets sent before the user intends to send it..
-			//	TODO: Store the OUT_Packet during Point->SendPacket()..
 			Packet->bDontRelease = true;				//	Needs to wait for an ACK
 			OUT_Packets[UniqueID] = Packet;				//	Store this packet until it gets ACK'd
 		}
 
-		inline NetPacket_Send* TryACK(const uintmax_t& UniqueID)
+		inline NetPacket_Send* TryACK(const uintmax_t& UniqueID) override
 		{
 			//
 			//	If we have an outgoing packet waiting to be acknowledged
@@ -48,41 +44,67 @@ namespace KNet
 		{
 			std::deque<NetPacket_Recv*> PacketBacklog;
 			//
-			//	Drop packets with a UniqueID older than the highest received ID
-			if (UniqueID <= IN_LastID)
+			//	Drop packets with a UniqueID lower than our next expected ID
+			if (UniqueID < IN_NextID)
 			{
 				//
 				//	Drop this packet
 				Packet->bRecycle = true;
-				return PacketBacklog;
 			}
-			else {
-				IN_LastID.store(UniqueID);
+			//
+			//	Process packets with a UniqueID equal to our next expected ID
+			else if (UniqueID == IN_NextID)
+			{
 				//
-				//	Process the packet if its UniqueID is the next one we need
-				if (UniqueID == IN_NextID)
+				//	Add this packet into our return packets deque
+				PacketBacklog.push_back(Packet);
+				//
+				//	Loop any waiting to process packets
+				while (IN_Packets.count(++IN_NextID))
 				{
-					//
-					//	Add this packet into our return packets deque
-					PacketBacklog.push_back(Packet);
-					//
-					//	Loop through stored packets while it has the next expected UniqueIDs
-					while (IN_Packets.count(++IN_NextID))
-					{
-						printf("LOOP ORDERED\n");
-						//
-						//	Push the stored packet into our backlog and remove it from the container
-						PacketBacklog.push_back(IN_Packets[IN_NextID]);
-						IN_Packets.erase(IN_NextID);
-					}
-					return PacketBacklog;
+					PacketBacklog.push_back(IN_Packets[IN_NextID]);
+					IN_Packets.erase(IN_NextID);
 				}
 				//
-				//	Store packets with a UniqueID greater than the one we need to process next
-				else {
-					printf("STORE ORDERED\n");
+				//	Keep this packet
+				Packet->bRecycle = false;
+			}
+			//
+			//	Store packets with a UniqueID greater than our next expected ID
+			else if (UniqueID > IN_NextID)
+			{
+				//
+				//	Only store a packet once
+				if (!IN_Packets.count(UniqueID))
+				{
+					printf("Ordered STORE %ju (waiting %ju)\n", UniqueID, IN_NextID);
 					IN_Packets[UniqueID] = Packet;
-					return PacketBacklog;
+				}
+				//
+				//	Recycle if already stored
+				else {
+					Packet->bRecycle = true;
+				}
+			}
+			return PacketBacklog;
+		}
+
+		inline void GetUnacknowledgedPackets(std::deque<NetPacket_Send*>& Packets_, const std::chrono::time_point<std::chrono::steady_clock>& Now) override
+		{
+			/*if (OUT_Packets.size() > 1)
+			{
+				printf("Ordered Unacknowledged: %zi\n", OUT_Packets.size());
+			}*/
+			for (auto& WaitingPackets : OUT_Packets)
+			{
+				if (WaitingPackets.second->NextTransmit <= Now)
+				{
+					//
+					//	Set our NextTransmit time
+					WaitingPackets.second->NextTransmit = Now + std::chrono::milliseconds(300);
+					//
+					//	Add it into our packet deque
+					Packets_.push_back(WaitingPackets.second);
 				}
 			}
 		}
