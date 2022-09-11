@@ -13,14 +13,15 @@ namespace KNet
 		inline Unreliable_Latest_Channel(uint8_t OPID) noexcept : Channel(ChannelID::Unreliable_Latest, OPID) {}
 
 		//	Initialize and return a new packet for sending
-		inline void StampPacket(NetPacket_Send* Packet) noexcept override
+		inline void StampPacket(NetPacket_Send*const Packet) noexcept override
 		{
 			Packet->bDontRelease = false;	//	Doesn't need ACK
-			Packet->SetUID(OUT_NextID++);	//	Write and increment the current UniqueID
+			OUT_NextID++;
+			Packet->SetUID(OUT_NextID);	//	Write and increment the current UniqueID
 		}
 
 		//	Receives a packet
-		inline const bool TryReceive(NetPacket_Recv* const Packet, const uintmax_t& UniqueID) noexcept
+		inline const bool TryReceive(NetPacket_Recv*const Packet, const uintmax_t& UniqueID) noexcept
 		{
 			if (UniqueID <= IN_LastID)
 			{

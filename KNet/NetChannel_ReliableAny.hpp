@@ -7,21 +7,21 @@ namespace KNet
 		//
 		//	Record the UniqueID of our next outgoing packet
 		uintmax_t OUT_NextID = 1;	//	Outgoing UniqueID
-		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets = {};	//	Unacknowledged outgoing packets
+		std::unordered_map<uintmax_t, NetPacket_Send*const> OUT_Packets = {};	//	Unacknowledged outgoing packets
 
 	public:
 		inline Reliable_Any_Channel(uint8_t OPID) noexcept : Channel(ChannelID::Reliable_Any, OPID) {}
 
 		//	Initialize and return a new packet for sending
-		inline void StampPacket(NetPacket_Send* Packet) override
+		inline void StampPacket(NetPacket_Send*const Packet) override
 		{
 			const uintmax_t UniqueID = OUT_NextID++;	//	Store and increment our UniqueID
 			Packet->SetUID(UniqueID);					//	Write the UniqueID
 			Packet->bDontRelease = true;				//	Needs to wait for an ACK
-			OUT_Packets[UniqueID] = Packet;				//	Store this packet until it gets ACK'd
+			OUT_Packets.emplace(UniqueID, Packet);				//	Store this packet until it gets ACK'd
 		}
 
-		inline NetPacket_Send* TryACK(const uintmax_t& UniqueID) override
+		inline NetPacket_Send*const TryACK(const uintmax_t& UniqueID) override
 		{
 			//
 			//	If we have an outgoing packet waiting to be acknowledged

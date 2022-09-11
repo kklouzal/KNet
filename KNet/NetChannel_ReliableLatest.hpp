@@ -8,7 +8,7 @@ namespace KNet
 		//	Record the UniqueID of our most recent incoming packet and the UniqueID of our next outgoing packet
 		uintmax_t IN_LastID = 0;	//	Incoming UniqueID
 		uintmax_t OUT_NextID = 1;	//	Outgoing UniqueID
-		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets = {};	//	Unacknowledged outgoing packets
+		std::unordered_map<uintmax_t, NetPacket_Send*const> OUT_Packets = {};	//	Unacknowledged outgoing packets
 
 	public:
 		inline Reliable_Latest_Channel(uint8_t OPID) noexcept : Channel(ChannelID::Reliable_Latest, OPID) {}
@@ -19,10 +19,10 @@ namespace KNet
 			const uintmax_t UniqueID = OUT_NextID++;	//	Store and increment our UniqueID
 			Packet->SetUID(UniqueID);					//	Write the UniqueID
 			Packet->bDontRelease = true;				//	Needs to wait for an ACK
-			OUT_Packets[UniqueID] = Packet;				//	Store this packet until it gets ACK'd
+			OUT_Packets.emplace(UniqueID, Packet);				//	Store this packet until it gets ACK'd
 		}
 
-		inline NetPacket_Send* TryACK(const uintmax_t& UniqueID) override
+		inline NetPacket_Send*const TryACK(const uintmax_t& UniqueID) override
 		{
 			//
 			//	If we have an outgoing packet waiting to be acknowledged
@@ -39,7 +39,7 @@ namespace KNet
 		}
 
 		//	Receives a packet
-		inline const bool TryReceive(NetPacket_Recv* const Packet, const uintmax_t& UniqueID) noexcept
+		inline const bool TryReceive(NetPacket_Recv*const Packet, const uintmax_t& UniqueID) noexcept
 		{
 			if (UniqueID <= IN_LastID)
 			{

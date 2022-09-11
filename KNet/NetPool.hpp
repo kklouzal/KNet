@@ -18,7 +18,7 @@ namespace KNet
 			//
 			//	Create our pool of objects
 			for (uint32_t i = 0; i < PoolSize; i++) {
-				T* Object = new T(_Data);
+				T*const Object = new T(_Data);
 				Object->BufferId = _BufferID;
 				Object->Length = MaxSize;
 				Object->Offset = MaxSize * i;
@@ -54,11 +54,11 @@ namespace KNet
 		//
 		//	Returns a pointer to a single unused object
 		//	Otherwise returns nullptr if no free objects available
-		T* GetFreeObject() noexcept
+		T*const GetFreeObject() noexcept
 		{
 			if (!_Free.empty())
 			{
-				T* Object = _Free.front();
+				T*const Object = _Free.front();
 				_Free.pop_front();
 				return Object;
 			}
@@ -69,21 +69,17 @@ namespace KNet
 
 		//
 		//	Places an object back into the pool of free objects
-		void ReturnUsedObject(T* Object)
+		void ReturnUsedObject(T*const Object)
 		{
-			bool Go = true;
 			for (auto Elem : _Free)
 			{
 				if (Elem == Object)
 				{
 					printf("TRYING TO INSERT DUPLICATE INTO FREE POOL!! BAD!\n");
-					Go = false;
+					return;
 				}
 			}
-			if (Go)
-			{
-				_Free.push_back(Object);
-			}
+			_Free.push_back(Object);
 		}
 	};
 }

@@ -21,7 +21,7 @@ namespace KNet
 
 		//
 		//	NetChannels
-		std::unordered_map<uint8_t, Channel*> Net_Channels;
+		std::unordered_map<uint8_t, Channel*const> Net_Channels;
 		//
 		//	When was our last packet received
 		std::chrono::time_point<std::chrono::steady_clock> LastPacketTime;
@@ -77,23 +77,23 @@ namespace KNet
 			{
 				if (T == ChannelID::Unreliable_Any)
 				{
-					Net_Channels[OPID] = new Unreliable_Any_Channel(OPID);
+					Net_Channels.emplace(OPID, new Unreliable_Any_Channel(OPID));
 				}
 				else if (T == ChannelID::Unreliable_Latest)
 				{
-					Net_Channels[OPID] = new Unreliable_Latest_Channel(OPID);
+					Net_Channels.emplace(OPID, new Unreliable_Latest_Channel(OPID));
 				}
 				else if (T == ChannelID::Reliable_Any)
 				{
-					Net_Channels[OPID] = new Reliable_Any_Channel(OPID);
+					Net_Channels.emplace(OPID, new Reliable_Any_Channel(OPID));
 				}
 				else if (T == ChannelID::Reliable_Latest)
 				{
-					Net_Channels[OPID] = new Reliable_Latest_Channel(OPID);
+					Net_Channels.emplace(OPID, new Reliable_Latest_Channel(OPID));
 				}
 				else if (T == ChannelID::Reliable_Ordered)
 				{
-					Net_Channels[OPID] = new Reliable_Ordered_Channel(OPID);
+					Net_Channels.emplace(OPID, new Reliable_Ordered_Channel(OPID));
 				}
 			}
 		}
@@ -103,16 +103,11 @@ namespace KNet
 			return Client_ID;
 		}
 
-		NetPacket_Send* GetFreePacket(uint8_t OperationID)
+		NetPacket_Send*const GetFreePacket(uint8_t OperationID)
 		{
-			NetPacket_Send* Packet = SendPacketPool->GetFreeObject();
+			NetPacket_Send*const Packet = SendPacketPool->GetFreeObject();
 			if (Packet)
 			{
-				while (Packet->bInUse)
-				{
-					//printf("RETURNING IN USE PACKET AS FREE! BAD!\n");
-					Packet = SendPacketPool->GetFreeObject();
-				}
 				Packet->bInUse = true;
 
 				Packet->AddDestination(_ADDR_RECV);
@@ -124,7 +119,7 @@ namespace KNet
 			return Packet;
 		}
 
-		inline void ProcessPacket_Acknowledgement(NetPacket_Recv* Packet)
+		inline void ProcessPacket_Acknowledgement(NetPacket_Recv*const Packet)
 		{
 			PacketID PID;
 			Packet->read<PacketID>(PID);
@@ -133,7 +128,7 @@ namespace KNet
 				uint8_t OPID = Packet->GetOID();
 				uintmax_t UniqueID = Packet->GetUID();
 				ChannelID CH_ID = Net_Channels[OPID]->GetChannelID();
-				NetPacket_Send* AcknowledgedPacket = Net_Channels[OPID]->TryACK(UniqueID);
+				NetPacket_Send*const AcknowledgedPacket = Net_Channels[OPID]->TryACK(UniqueID);
 				if (AcknowledgedPacket) {
 					const std::chrono::microseconds AckTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(Packet->GetTimestamp() - AcknowledgedPacket->GetTimestamp()));
 					const std::chrono::microseconds RttTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch().count() - AcknowledgedPacket->GetTimestamp()));
@@ -147,12 +142,12 @@ namespace KNet
 			}
 		}
 
-		inline void ProcessPacket_Handshake(NetPacket_Recv* Packet) noexcept
+		inline void ProcessPacket_Handshake(NetPacket_Recv*const Packet) noexcept
 		{
 			//	Well this is useless for the time being..
 		}
 
-		inline void ProcessPacket_Data(NetPacket_Recv* Packet)
+		inline void ProcessPacket_Data(NetPacket_Recv*const Packet)
 		{
 			const uint8_t OPID = Packet->GetOID();
 			const ChannelID CH_ID = Net_Channels[OPID]->GetChannelID();
@@ -210,7 +205,7 @@ namespace KNet
 			}
 		}
 
-		void ReturnPacket(NetPacket_Send* Packet) noexcept
+		void ReturnPacket(NetPacket_Send*const Packet) noexcept
 		{
 			KN_CHECK_RESULT(PostQueuedCompletionStatus(IOCP, NULL, static_cast<ULONG_PTR>(Completions::ReleaseSEND), Packet->Overlap), false);
 		}
@@ -233,12 +228,12 @@ namespace KNet
 				{
 					case static_cast<ULONG_PTR>(Completions::RecvUnread):
 					{
-						_Packets.push_back(static_cast<NetPacket_Recv*>(pEntries[i].lpOverlapped->Pointer));
+						_Packets.push_back(static_cast<NetPacket_Recv*const>(pEntries[i].lpOverlapped->Pointer));
 					}
 					break;
 					case static_cast<ULONG_PTR>(Completions::ReleaseSEND):
 					{
-						NetPacket_Send* Pkt = static_cast<NetPacket_Send*>(pEntries[i].lpOverlapped->Pointer);
+						NetPacket_Send*const Pkt = static_cast<NetPacket_Send*const>(pEntries[i].lpOverlapped->Pointer);
 						Pkt->bInUse = false;
 						SendPacketPool->ReturnUsedObject(Pkt);
 					}

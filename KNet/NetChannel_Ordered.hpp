@@ -8,22 +8,22 @@ namespace KNet
 		//	Record the UniqueID of our most recent incoming packet and the UniqueID of our next outgoing packet
 		uintmax_t IN_NextID = 1;	//	Next Incoming UniqueID to process
 		uintmax_t OUT_NextID = 1;	//	Next Outgoing UniqueID
-		std::unordered_map<uintmax_t, NetPacket_Send*> OUT_Packets = {};	//	Unacknowledged outgoing packets
-		std::unordered_map<uintmax_t, NetPacket_Recv*> IN_Packets = {};	//	Unprocessed incoming packets
+		std::unordered_map<uintmax_t, NetPacket_Send*const> OUT_Packets = {};	//	Unacknowledged outgoing packets
+		std::unordered_map<uintmax_t, NetPacket_Recv*const> IN_Packets = {};	//	Unprocessed incoming packets
 
 	public:
 		inline Reliable_Ordered_Channel(uint8_t OPID) noexcept : Channel(ChannelID::Reliable_Ordered, OPID) {}
 
 		//	Initialize and return a new packet for sending
-		inline void StampPacket(NetPacket_Send* Packet) override
+		inline void StampPacket(NetPacket_Send*const Packet) override
 		{
 			const uintmax_t UniqueID = OUT_NextID++;	//	Store and increment our UniqueID
 			Packet->SetUID(UniqueID);					//	Write the UniqueID
 			Packet->bDontRelease = true;				//	Needs to wait for an ACK
-			OUT_Packets[UniqueID] = Packet;				//	Store this packet until it gets ACK'd
+			OUT_Packets.emplace(UniqueID, Packet);				//	Store this packet until it gets ACK'd
 		}
 
-		inline NetPacket_Send* TryACK(const uintmax_t& UniqueID) override
+		inline NetPacket_Send*const TryACK(const uintmax_t& UniqueID) override
 		{
 			//
 			//	If we have an outgoing packet waiting to be acknowledged
@@ -40,7 +40,7 @@ namespace KNet
 		}
 
 		//	Receives a packet
-		inline std::deque<NetPacket_Recv*> TryReceive(NetPacket_Recv* const Packet, const uintmax_t& UniqueID)
+		inline std::deque<NetPacket_Recv*> TryReceive(NetPacket_Recv*const Packet, const uintmax_t& UniqueID)
 		{
 			std::deque<NetPacket_Recv*> PacketBacklog;
 			//
@@ -78,7 +78,7 @@ namespace KNet
 				if (!IN_Packets.count(UniqueID))
 				{
 					printf("Ordered STORE %ju (waiting %ju)\n", UniqueID, IN_NextID);
-					IN_Packets[UniqueID] = Packet;
+					IN_Packets.emplace(UniqueID, Packet);
 				}
 				//
 				//	Recycle if already stored

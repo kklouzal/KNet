@@ -87,28 +87,28 @@ namespace KNet {
 
 		//
 		//	Packet ID (Ack,Data,Handshake)
-		void SetPID(PacketID ID) noexcept
+		void SetPID(const PacketID& ID) noexcept
 		{
 			std::memcpy(PID, &ID, sizeof(PacketID));
 		}
 
 		//
 		//	Packet ID (Ack,Data,Handshake)
-		PacketID GetPID() noexcept
+		const PacketID& GetPID() noexcept
 		{
 			return *PID;
 		}
 
 		//
 		//	Packet Client ID (Client/Server)
-		void SetCID(ClientID ID) noexcept
+		void SetCID(const ClientID& ID) noexcept
 		{
 			std::memcpy(CID, &ID, sizeof(ClientID));
 		}
 
 		//
 		//	Packet Client ID (Client/Server)
-		ClientID GetCID() noexcept
+		const ClientID& GetCID() noexcept
 		{
 			return *CID;
 		}
@@ -116,7 +116,7 @@ namespace KNet {
 		//
 		//	Packet Operation ID (User Defined)
 		//	Also is the Channel ID
-		void SetOID(uint8_t ID) noexcept
+		void SetOID(const uint8_t& ID) noexcept
 		{
 			std::memcpy(OID, &ID, sizeof(uint8_t));
 		}
@@ -124,31 +124,31 @@ namespace KNet {
 		//
 		//	Packet Operation ID (User Defined)
 		//	Also is the Channel ID
-		uint8_t GetOID() noexcept
+		const uint8_t& GetOID() noexcept
 		{
 			return *OID;
 		}
 
 		//
 		//	Packet Unique ID
-		void SetUID(uintmax_t ID) noexcept
+		void SetUID(const uintmax_t& ID) noexcept
 		{
 			std::memcpy(UID, &ID, sizeof(uintmax_t));
 		}
 
 		//
 		//	Packet Unique ID
-		uintmax_t GetUID() noexcept
+		const uintmax_t& GetUID() noexcept
 		{
 			return *UID;
 		}
 
-		void SetTimestamp(uintmax_t TS) noexcept
+		void SetTimestamp(const uintmax_t& TS) noexcept
 		{
 			std::memcpy(Timestamp, &TS, sizeof(uintmax_t));
 		}
 
-		uintmax_t GetTimestamp() noexcept
+		const uintmax_t& GetTimestamp() noexcept
 		{
 			return *Timestamp;
 		}
@@ -156,33 +156,33 @@ namespace KNet {
 		//
 		//	Writes the next value in our packet
 		//	Writes MUST be read in the same order they were written!
-		template <typename T> const bool write(T value) noexcept {
+		template <typename T> const bool write(const T& value) noexcept {
 			//static_assert(std::is_trivial_v<T>);
 			//
 			//	Get the size of this write
 			constexpr std::size_t bytes = sizeof(T);
 			//
 			//	Ensure we don't write past the end of our data buffer
-			if (m_write + bytes >= MAX_PACKET_SIZE) { return false; }
+			if (m_write + bytes >= MAX_PACKET_SIZE) { return std::move(false); }
 			//
 			//	Copy the data from our variable to the data buffer
 			std::memcpy(&BinaryData[m_write], &value, bytes);
 			//
 			//	Advance our write position
 			m_write += bytes;
-			return true;
+			return std::move(true);
 		}
 
 		//
 		//	Specialized
-		template <> const bool write(const char* value) noexcept {
+		template <> const bool write(const char*const &value) noexcept {
 			const size_t Len = strlen(value);
 			//
 			//	Get the size of this write
 			constexpr std::size_t bytes = sizeof(size_t);
 			//
 			//	Ensure we don't write past the end of our data buffer
-			if (m_write + bytes + Len >= MAX_PACKET_SIZE) { return false; }
+			if (m_write + bytes + Len >= MAX_PACKET_SIZE) { return std::move(false); }
 			//
 			//	Copy the data from our variable to the data buffer
 			std::memcpy(&BinaryData[m_write], &Len, bytes);
@@ -195,7 +195,7 @@ namespace KNet {
 			//
 			//	Advance our write position
 			m_write += Len;
-			return true;
+			return std::move(true);
 		}
 	};
 	//
@@ -286,14 +286,14 @@ namespace KNet {
 
 		//
 		//	Packet ID (Ack,Data,Handshake)
-		PacketID GetPID() noexcept
+		const PacketID& GetPID() noexcept
 		{
 			return *PID;
 		}
 
 		//
 		//	Packet Client ID (Client/Server)
-		ClientID GetCID() noexcept
+		const ClientID& GetCID() noexcept
 		{
 			return *CID;
 		}
@@ -301,19 +301,19 @@ namespace KNet {
 		//
 		//	Packet Operation ID (User Defined)
 		//	Also is the Channel ID
-		uint8_t GetOID() noexcept
+		const uint8_t& GetOID() noexcept
 		{
 			return *OID;
 		}
 
 		//
 		//	Packet Unique ID
-		uintmax_t GetUID() noexcept
+		const uintmax_t& GetUID() noexcept
 		{
 			return *UID;
 		}
 
-		uintmax_t GetTimestamp() noexcept
+		const uintmax_t& GetTimestamp() noexcept
 		{
 			return *Timestamp;
 		}
@@ -328,14 +328,14 @@ namespace KNet {
 			constexpr std::size_t bytes = sizeof(T);
 			//
 			//	Ensure we don't read past the end of our data buffer
-			if (m_read + bytes >= MAX_PACKET_SIZE) { return false; }
+			if (m_read + bytes >= MAX_PACKET_SIZE) { return std::move(false); }
 			//
 			//	Copy the data from the data buffer to our variable
 			std::memcpy(&Var, &BinaryData[m_read], bytes);
 			//
 			//	Advance our read position
 			m_read += bytes;
-			return true;
+			return std::move(true);
 		}
 
 		//
@@ -347,7 +347,7 @@ namespace KNet {
 			constexpr std::size_t bytes = sizeof(size_t);
 			//
 			//	Ensure we don't read past the end of our data buffer
-			if (m_read + bytes >= MAX_PACKET_SIZE) { return false; }
+			if (m_read + bytes >= MAX_PACKET_SIZE) { return std::move(false); }
 			//
 			//	Copy the data from the data buffer to our variable
 			size_t charSize;
@@ -357,14 +357,14 @@ namespace KNet {
 			m_read += bytes;
 			//
 			//	Ensure we don't read past the end of our data buffer
-			if (m_read + charSize >= MAX_PACKET_SIZE) { return false; }
+			if (m_read + charSize >= MAX_PACKET_SIZE) { return std::move(false); }
 			//
 			//	Copy the data from the data buffer to our variable
 			strncat(&Var, &BinaryData[m_read], charSize);
 			//
 			//	Advance our read position
 			m_read += charSize;
-			return Var;
+			return std::move(true);
 		}
 	};
 }
